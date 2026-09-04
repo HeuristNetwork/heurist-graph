@@ -1,0 +1,154 @@
+/**
+ * @file GraphControlPanel.js
+ * @brief Graph controls using the heurist-data panel interaction pattern.
+ */
+import { DatasetSelector } from "./DatasetSelector.js";
+import { FilterSelector } from "./FilterSelector.js";
+import { $HR, applyI18n } from "./i18n/HResource.js";
+
+export class GraphControlPanel {
+  constructor({ api, container, datasetListProvider, datasetProvider, filterListProvider }) {
+    this.api = api;
+    this.container = container;
+    this.datasetListProvider = datasetListProvider;
+    this.datasetProvider = datasetProvider;
+    this.filterListProvider = filterListProvider;
+    this.listeners = [];
+  }
+
+  async mount() {
+    this.element = document.createElement("aside");
+    this.element.className = "heurist-graph-control-panel";
+    this.element.setAttribute("aria-label", $HR("Graph controls"));
+    const header = document.createElement("div");
+    header.className = "heurist-graph-panel-header";
+    const toggle = iconButton("fa-solid fa-layer-group", "Show or hide graph controls", () => this.toggleFullyCollapsed());
+    toggle.classList.add("heurist-graph-panel-toggle");
+    toggle.setAttribute("aria-expanded", "true");
+    header.append(toggle);
+    this.actions = document.createElement("span");
+    this.actions.className = "heurist-graph-panel-actions";
+    this.createButton = iconButton("fa-solid fa-circle-plus", "Create new dataset", () => this.api.requestCreateDataset?.());
+    this.expandButton = iconButton("fa-solid fa-diagram-project", "Expand graph", () => this.expandGraph());
+    this.exportButton = iconButton("fa-solid fa-file-export", "Export Gephi", () => this.api.exportGephi?.());
+    this.optionsButton = iconButton("fa-solid fa-gear", "Options", () => this.api.openPreferencesDialog?.());
+    this.publishButton = iconButton("fa-solid fa-share-nodes", "Publish", () => this.api.openPublishDialog?.());
+    this.actions.append(this.createButton, this.expandButton, this.exportButton, this.optionsButton, this.publishButton);
+    header.append(this.actions);
+
+    const body = document.createElement("div");
+    body.className = "heurist-graph-panel-body";
+    const datasets = section(body, "Datasets");
+    this.datasetsSection = datasets.section;
+    this.datasetsSelector = new DatasetSelector({ api: this.api, container: datasets.content, classPrefix: "heurist-graph", onError: (error) => this.reportError(error) });
+    const filters = section(body, "Filters");
+    this.filtersSection = filters.section;
+    this.filtersSelector = new FilterSelector({
+      api: this.api,
+      container: filters.content,
+      classPrefix: "heurist-graph",
+      loadFilter: (id) => this.filterListProvider?.load(id),
+      onError: (error) => this.reportError(error),
+    });
+    this.element.append(header, body);
+    header.addEventListener("click", (event) => {
+      if (!event.target.closest(".heurist-graph-icon-button")) this.toggleBody();
+    });
+    (this.container.parentElement || document.body).append(this.element);
+    this.sourceHeader = document.createElement("div");
+    this.sourceHeader.className = "heurist-graph-source-header";
+    this.container.prepend(this.sourceHeader);
+    this.bind("heurist-graph-loaded", () => this.render());
+    this.applyVisibility();
+    await this.render();
+    applyI18n(this.element);
+    return this.element;
+  }
+
+  bind(name, handler) {
+    this.api.addEventListener(name, handler);
+    this.listeners.push([name, handler]);
+  }
+
+  async render() {
+    const state = this.api.getState();
+    this.sourceHeader.textContent = state.datasetTitle || $HR("Current result");
+    const [datasets, filters] = await Promise.all([
+      this.datasetListProvider?.list?.() || [],
+      this.filterListProvider?.list?.() || [],
+    ]);
+    this.datasetsSelector.render(normalizeItems(datasets, "Dataset"), state.datasetId, !state.datasetId);
+    this.filtersSelector.render(normalizeItems(filters, "Filter"));
+    applyI18n(this.element);
+  }
+
+  async expandGraph() {
+    const ids = this.api.getState().selection || [];
+    if (ids.length) return this.api.expandNode(ids[0]);
+    return this.api.fit?.();
+  }
+
+  toggleFullyCollapsed() {
+    const collapsed = this.element.classList.toggle("fully-collapsed");
+    this.updateExpandedState(!collapsed);
+  }
+
+  toggleBody() {
+    if (this.element.classList.contains("fully-collapsed")) return;
+    const collapsed = this.element.classList.toggle("body-collapsed");
+    this.updateExpandedState(!collapsed);
+  }
+
+  updateExpandedState(expanded) {
+    this.element.querySelector(".heurist-graph-panel-toggle")?.setAttribute("aria-expanded", String(expanded));
+  }
+
+  applyVisibility() {
+    this.sourceHeader.hidden = false;
+    this.hasVisiblePanels = true;
+  }
+
+  reportError(error) {
+    this.api.application?.dispatch?.("heurist-graph-error", { error });
+  }
+
+  destroy() {
+    this.listeners.forEach(([name, handler]) => this.api.removeEventListener(name, handler));
+    this.sourceHeader?.remove();
+    this.element?.remove();
+  }
+}
+
+function section(parent, title) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.className = "h-i18n";
+  heading.textContent = title;
+  const content = document.createElement("div");
+  section.append(heading, content);
+  parent.append(section);
+  return { section, content };
+}
+
+function iconButton(icon, title, handler) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "heurist-graph-icon-button";
+  button.title = $HR(title);
+  button.setAttribute("aria-label", $HR(title));
+  button.innerHTML = `<span class="${icon}" aria-hidden="true"></span>`;
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    Promise.resolve(handler()).catch(() => {});
+  });
+  return button;
+}
+
+function normalizeItems(result, fallback) {
+  const values = Array.isArray(result) ? result : result?.items || [];
+  return values.map((item) => ({
+    ...item,
+    id: Number(item.id ?? item.rec_ID),
+    title: String(item.title ?? item.name ?? item.rec_Title ?? `${fallback} ${item.id ?? item.rec_ID}`),
+  })).filter((item) => Number.isInteger(item.id) && item.id > 0);
+}

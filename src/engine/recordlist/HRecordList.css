@@ -1,0 +1,47 @@
+.h-recordlist { min-height:0; font-size:var(--heurist-data-font-size,14px); color:#2f2f2f; }
+.h-recordlist-toolbar,.h-recordlist-footer { flex:0 0 auto; min-height:42px; padding:4px; }
+.h-recordlist-toolbar { border-bottom:1px solid #ddd; padding-right:310px; }
+.h-recordlist-footer { border-top:1px solid #ddd; justify-content:space-between; gap:8px; }
+.h-recordlist-pagination { margin:auto; }
+.h-recordlist-search { width:min(260px,100%); }
+.h-recordlist-page-size { width:76px; }
+.h-recordlist-view-mode { width:112px; }
+.h-recordlist-content { min-height:0; overflow:auto; padding:3px; }
+.h-recordlist-content[data-view-mode="card"] { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); align-content:start; gap:6px; }
+.h-recordlist-content[data-view-mode="row"] { display:flex; flex-flow:row nowrap; align-items:stretch; gap:6px; }
+.h-recordlist-content[data-view-mode="big"] { display:flex; flex-direction:column; gap:6px; }
+.h-recordlist-item { position:relative; isolation:isolate; box-sizing:border-box; border:1px solid #d7d7d7; background:#fff; cursor:pointer; }
+.h-recordlist-item:hover { border-color:#86a9c2; background:#f7fbfe; }
+.h-recordlist-item.h-recordlist-selected { border-color:#3983b7; background:#dcecff; box-shadow:inset 0 0 0 1px #3983b7; }
+.h-recordlist-table { display:flex; flex-flow:row nowrap; align-items:center; gap:7px; min-height:31px; padding:3px 6px; border-width:0 0 1px; white-space:nowrap; }
+.h-recordlist-table > * { flex-shrink:0; }
+.h-recordlist-table .h-recordlist-title { flex:1 1 auto; min-width:0; overflow:hidden; white-space:nowrap; }
+.h-recordlist-table .h-recordlist-admin { flex-wrap:nowrap; }
+.h-recordlist-admin { color:#777; font-size:.86em; white-space:nowrap; }
+.h-recordlist-admin { display:flex; align-items:center; gap:3px; }
+.h-recordlist-admin .bi { width:12px; font-size:12px; text-align:center; }
+.h-recordlist-owner { display:inline-block; flex:0 0 85px; width:75px; overflow:hidden; text-overflow:ellipsis; color:#777; padding-left: 4px}
+.h-recordlist-bookmark.is-placeholder { visibility:hidden; }
+.h-recordlist-visibility { display:inline-flex; width:12px; height:12px; align-items:center; justify-content:center; }
+.h-recordlist-rectype-icon { display:inline-block; flex:0 0 18px; width:18px !important; height:18px !important; object-fit:contain; }
+.h-recordlist-title { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.h-recordlist-actions { display:flex; align-items:center; gap:2px; opacity:0; }
+.h-recordlist-item:hover .h-recordlist-actions { opacity:1; }
+.h-recordlist-template-item > .h-recordlist-actions { position:absolute; z-index:10; top:4px; right:4px; padding:2px; background:rgba(255,255,255,.86); border-radius:2px; }
+.h-recordlist-icon-button { width:16px; height:16px; border:0; background:transparent; color:#777; padding:2px; font-size:12px; line-height:12px; }
+.h-recordlist-card { min-width:0; min-height:150px; padding:8px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
+.h-recordlist-card-top { display:flex; justify-content:flex-start; min-height:22px; }
+.h-recordlist-thumbnail { display:block; width:100%; height:86px; object-fit:contain; margin:2px auto; }
+.h-recordlist-thumbnail-fallback { opacity:.5; }
+.h-recordlist-card .h-recordlist-title { min-width:0; text-align:center; white-space:normal; overflow-wrap:anywhere; }
+.h-recordlist-card > .h-recordlist-template-content { min-height:0; max-width:100%; overflow:hidden; overflow-wrap:anywhere; }
+.h-recordlist-card > .h-recordlist-template-content > * { max-width:100%; box-sizing:border-box; }
+.h-recordlist-row { flex:0 0 280px; min-height:150px; padding:8px; }
+.h-recordlist-big { flex:0 0 auto; height:auto; min-height:240px; padding:10px; }
+.h-recordlist-template-content { position:relative; z-index:0; display:flow-root; min-width:0; height:auto; }
+.h-recordlist-big .h-recordlist-template-content.h-recordlist-placeholder { min-height:240px; }
+.h-recordlist-placeholder { min-height:90px; display:grid; place-items:center; color:#777; }
+.h-recordlist-message { height:100%; display:grid; place-items:center; color:#777; }
+.h-recordlist-hidden { display:none !important; }
+.h-recordlist-loading { cursor:progress; opacity:.7; }
+@media (max-width:800px) { .h-recordlist-toolbar { padding-right:4px; } }
