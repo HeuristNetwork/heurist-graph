@@ -24,6 +24,7 @@ import { DatasetProvider } from "./data/DatasetProvider.js";
 import { FilterProvider } from "./data/FilterProvider.js";
 import { ReportTemplateProvider } from "./data/ReportTemplateProvider.js";
 import { RecordContentProvider } from "./data/RecordContentProvider.js";
+import { VocabularyProvider } from "./data/VocabularyProvider.js";
 import { GraphConfigurationDialog } from "./ui/config/GraphConfigurationDialog.js";
 
 export async function initHeuristGraph(config) {
@@ -50,6 +51,9 @@ export async function initHeuristGraph(config) {
       baseUrl: heuristBaseUrl,
       database: config.database,
     }),
+    // Resolves edge detail-type (dty_ID) and relation-type (trm_ID) labels
+    // after each load, for the graph edge labels and the legend.
+    vocabularyProvider: new VocabularyProvider({ apiClient }),
   });
   const api = new HeuristGraphPublicApi(application);
   const canvas = document.createElement("div");

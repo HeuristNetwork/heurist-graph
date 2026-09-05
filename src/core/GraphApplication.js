@@ -21,6 +21,7 @@ export class GraphApplication extends EventTarget {
     host,
     datasetProvider = null,
     recordContentProvider = null,
+    vocabularyProvider = null,
   }) {
     super();
     this.config = config;
@@ -29,7 +30,14 @@ export class GraphApplication extends EventTarget {
     this.host = host;
     this.datasetProvider = datasetProvider;
     this.recordContentProvider = recordContentProvider;
+    this.vocabularyProvider = vocabularyProvider;
     this.graph = null;
+    // Human labels for edges, resolved from the API after every load:
+    // `fields` keyed by detail-type dty_ID, `relationTypes` by relation-type
+    // trm_ID. `relationTypeTrees` keeps each relation type's descendant tree
+    // for the legend renderer. See VocabularyProvider.
+    this.edgeLabels = { fields: new Map(), relationTypes: new Map() };
+    this.relationTypeTrees = {};
     this.selection = normalizeIds(config.selection);
     this.abortController = null;
     this.generation = 0;
@@ -106,6 +114,7 @@ export class GraphApplication extends EventTarget {
         popupTemplate: normalized.config.defaults.popupTemplate,
         selectionEnabled: normalized.options.interaction.selectionEnabled,
         popupEnabled: normalized.options.interaction.popupEnabled,
+        nativeControls: normalized.options.nativeControls,
       };
     } catch (error) {
       this.dispatch("heurist-graph-error", { error, operation: "load-preferences" });
@@ -204,7 +213,52 @@ export class GraphApplication extends EventTarget {
     this.dispatchEvent(
       new CustomEvent("heurist-graph-loaded", { detail: result }),
     );
+    // The graph is already on screen with numeric fallback labels; swap in
+    // detail-type and relation-type names once the API resolves them.
+    await this.#resolveVocabulary(generation);
     return this.getState();
+  }
+
+  /**
+   * Resolve human labels for every edge detail type (dty_ID) and relation type
+   * (trm_ID) in the loaded graph, push them into the engine, and keep the
+   * relation-type trees for the legend. Best-effort: a failure leaves the
+   * numeric fallback labels untouched.
+   */
+  async #resolveVocabulary(generation) {
+    if (!this.vocabularyProvider || !this.graph) return;
+    const fieldIds = new Set();
+    const relationIds = new Set();
+    for (const edge of this.graph.edges) {
+      if (edge.fieldId) fieldIds.add(edge.fieldId);
+      if (edge.relationshipId) relationIds.add(edge.relationshipId);
+    }
+    if (!fieldIds.size && !relationIds.size) return;
+    const signal = this.abortController?.signal;
+    try {
+      const [fields, relations] = await Promise.all([
+        fieldIds.size
+          ? this.vocabularyProvider.getFieldNames([...fieldIds], { signal })
+          : new Map(),
+        relationIds.size
+          ? this.vocabularyProvider.getRelationTypeTrees([...relationIds], {
+              signal,
+            })
+          : { names: new Map(), trees: {} },
+      ]);
+      if (generation !== undefined && generation !== this.generation) return;
+      this.edgeLabels = { fields, relationTypes: relations.names };
+      this.relationTypeTrees = relations.trees;
+      await this.engine.setEdgeLabels?.(this.edgeLabels);
+      this.dispatch("heurist-graph-vocabulary-changed", {
+        fields: this.edgeLabels.fields,
+        relationTypes: this.edgeLabels.relationTypes,
+        relationTypeTrees: this.relationTypeTrees,
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      this.dispatch("heurist-graph-error", { error, operation: "vocabulary" });
+    }
   }
 
   async setDataset(id) {
@@ -299,6 +353,7 @@ export class GraphApplication extends EventTarget {
       popupTemplate: defaults.popupTemplate,
       selectionEnabled: normalized.options.interaction.selectionEnabled,
       popupEnabled: normalized.options.interaction.popupEnabled,
+      nativeControls: normalized.options.nativeControls,
     };
     await this.engine.applyConfiguration?.(this.config.engineOptions);
     // Gravity/scaling/label length only take effect on vis-network through a
@@ -332,8 +387,36 @@ export class GraphApplication extends EventTarget {
   }
 
   /**
+   * Resolved edge vocabulary for the legend renderer: detail-type names keyed
+   * by dty_ID, relation-type names keyed by trm_ID, and each relation type's
+   * descendant tree (`{ id, label, children }`) keyed by its root trm_ID.
+   */
+  getVocabulary() {
+    return {
+      fields: this.edgeLabels.fields,
+      relationTypes: this.edgeLabels.relationTypes,
+      relationTypeTrees: this.relationTypeTrees,
+    };
+  }
+
+  /** Best available human label for a legend link group, or null. */
+  #linkLabel(entry) {
+    if (entry.relationshipId) {
+      const name = this.edgeLabels.relationTypes.get(entry.relationshipId);
+      if (name) return name;
+    }
+    if (entry.fieldId) {
+      const name = this.edgeLabels.fields.get(entry.fieldId);
+      if (name) return name;
+    }
+    return null;
+  }
+
+  /**
    * Legend model derived from the loaded graph: node counts by record type and
-   * edge counts by link group, each with its current visibility flag.
+   * edge counts by link group, each with its current visibility flag. Link
+   * groups also carry a resolved `label` and the relation-type trees are
+   * included for the renderer.
    */
   getLegend() {
     const recordTypes = new Map();
@@ -364,8 +447,10 @@ export class GraphApplication extends EventTarget {
       })),
       links: [...links.values()].map((entry) => ({
         ...entry,
+        label: this.#linkLabel(entry),
         visible: !this.hiddenLinks.has(entry.key),
       })),
+      relationTypeTrees: this.relationTypeTrees,
     };
   }
 

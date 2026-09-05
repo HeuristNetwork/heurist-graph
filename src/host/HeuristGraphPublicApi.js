@@ -80,6 +80,22 @@ export class HeuristGraphPublicApi {
     return this.application.expandNode(recordId);
   }
 
+  getLegend() {
+    return this.application.getLegend();
+  }
+
+  getVocabulary() {
+    return this.application.getVocabulary();
+  }
+
+  setRecordTypeVisibility(recordTypeId, visible) {
+    return this.application.setRecordTypeVisibility(recordTypeId, visible);
+  }
+
+  setLinkVisibility(key, visible) {
+    return this.application.setLinkVisibility(key, visible);
+  }
+
   setSelection(recordIds, options) {
     return this.application.setSelection(recordIds, options);
   }

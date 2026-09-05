@@ -244,6 +244,110 @@ test("GraphApplication builds a legend and hides record types and link groups", 
   assert.equal(rendered.edges.length, 0);
 });
 
+test("GraphApplication resolves edge detail-type and relation-type labels after load", async () => {
+  const labelPushes = [];
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    setEdgeLabels: async (labels) => labelPushes.push(labels),
+    destroy: async () => {},
+  };
+  const payload = graphEnvelope({
+    records: [
+      { rec_ID: 1, rec_RecTypeID: 10, rec_Title: "Person A" },
+      { rec_ID: 2, rec_RecTypeID: 10, rec_Title: "Person B" },
+      { rec_ID: 3, rec_RecTypeID: 12, rec_Title: "Event" },
+    ],
+    edges: [
+      { id: "1:3:16:0", source: 1, target: 3, field: 16 },
+      { id: "1:2:0:3089", source: 1, target: 2, relationship: 3089 },
+    ],
+  });
+  const vocabularyProvider = {
+    getFieldNames: async (ids) => {
+      assert.deepEqual([...ids].sort(), [16]);
+      return new Map([[16, "Person"]]);
+    },
+    getRelationTypeTrees: async (ids) => {
+      assert.deepEqual([...ids].sort(), [3089]);
+      return {
+        names: new Map([
+          [3089, "IsParentOf"],
+          [3095, "IsBiologicalParentOf"],
+        ]),
+        trees: {
+          3089: {
+            id: 3089,
+            label: "IsParentOf",
+            children: [{ id: 3095, label: "IsBiologicalParentOf", children: [] }],
+          },
+        },
+      };
+    },
+  };
+  const application = new GraphApplication({
+    config: { query: "t:10", selection: [], limits: {} },
+    provider: { load: async () => ({ graph: new GraphDocument(payload) }) },
+    engine,
+    host: {},
+    vocabularyProvider,
+  });
+
+  let vocabEvent;
+  application.addEventListener("heurist-graph-vocabulary-changed", (event) => {
+    vocabEvent = event.detail;
+  });
+
+  await application.initialize({});
+
+  assert.equal(labelPushes.length, 1);
+  assert.equal(labelPushes[0].fields.get(16), "Person");
+  assert.equal(labelPushes[0].relationTypes.get(3089), "IsParentOf");
+
+  const vocab = application.getVocabulary();
+  assert.equal(vocab.fields.get(16), "Person");
+  assert.equal(vocab.relationTypeTrees[3089].children[0].label, "IsBiologicalParentOf");
+  assert.deepEqual(vocabEvent.relationTypeTrees, vocab.relationTypeTrees);
+
+  const legend = application.getLegend();
+  const fieldGroup = legend.links.find((l) => l.key === "field:16");
+  const relGroup = legend.links.find((l) => l.key === "relationship:3089");
+  assert.equal(fieldGroup.label, "Person");
+  assert.equal(relGroup.label, "IsParentOf");
+  assert.deepEqual(legend.relationTypeTrees, vocab.relationTypeTrees);
+});
+
+test("GraphApplication load works unchanged without a vocabulary provider", async () => {
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    destroy: async () => {},
+  };
+  const application = new GraphApplication({
+    config: { query: "t:10", selection: [], limits: {} },
+    provider: {
+      load: async () => ({
+        graph: new GraphDocument(
+          graphEnvelope({
+            records: [{ rec_ID: 1, rec_RecTypeID: 10, rec_Title: "A" }],
+            edges: [{ id: "1:2:16:0", source: 1, target: 2, field: 16 }],
+          }),
+        ),
+      }),
+    },
+    engine,
+    host: {},
+  });
+  await application.initialize({});
+  const legend = application.getLegend();
+  assert.equal(legend.links[0].label, null);
+  assert.deepEqual(application.getVocabulary().relationTypeTrees, {});
+});
+
 test("HeuristGraphHostAdapter publishes selection through the bridge", async () => {
   let selection;
   const host = new HeuristGraphHostAdapter({

@@ -13,6 +13,7 @@
 
 import { DataSet, Network } from "vis-network/standalone";
 import { GraphEngineAdapter } from "../GraphEngineAdapter.js";
+import { NavControls } from "./NavControls.js";
 
 /** Default label length; longer titles are truncated with an ellipsis. */
 const DEFAULT_LABEL_MAX_LENGTH = 40;
@@ -35,6 +36,9 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.onPopupContentRequest = onPopupContentRequest;
     this.nodes = new DataSet();
     this.edges = new DataSet();
+    // Human labels for edges, keyed by detail-type dty_ID / relation-type
+    // trm_ID; populated by setEdgeLabels() after the app resolves them.
+    this.edgeLabels = { fields: new Map(), relationTypes: new Map() };
     this.popup = null;
     this.popupGeneration = 0;
     this.popupAbortController = null;
@@ -58,6 +62,10 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     });
     this.network.on("dragStart", () => this.#hidePopup());
     this.network.on("zoom", () => this.#hidePopup());
+    // Replaces vis-network's `interaction.navigationButtons` (PNG glyphs that
+    // can't be recoloured or toggled individually) - see NavControls.js.
+    this.navControls = new NavControls(container, this.network);
+    this.navControls.setVisibility(options.nativeControls);
   }
 
   async setGraph(graph) {
@@ -100,19 +108,56 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         id: edge.id,
         from: edge.from,
         to: edge.to,
-        label: edge.fieldId ? String(edge.fieldId) : undefined,
+        label: this.#edgeLabel(edge),
         arrows: "to",
-        // Provenance carried through for legend grouping and edge styling.
+        // Provenance carried through for legend grouping, edge styling, and
+        // re-labelling once vocabulary names arrive (see setEdgeLabels).
         link: edge.link || undefined,
         path: edge.path || undefined,
+        fieldId: edge.fieldId || undefined,
+        relationshipId: edge.relationshipId || undefined,
       })),
     );
+  }
+
+  /**
+   * Replace the numeric fallback labels with resolved detail-type and
+   * relation-type names, on every edge already rendered.
+   * @param {{fields: Map<number,string>, relationTypes: Map<number,string>}} labels
+   */
+  async setEdgeLabels(labels = {}) {
+    this.edgeLabels = {
+      fields: labels.fields instanceof Map ? labels.fields : new Map(),
+      relationTypes:
+        labels.relationTypes instanceof Map ? labels.relationTypes : new Map(),
+    };
+    if (!this.edges) return;
+    this.edges.update(
+      this.edges.get().map((edge) => ({
+        id: edge.id,
+        label: this.#edgeLabel(edge),
+      })),
+    );
+  }
+
+  /** Name for an edge: relation type first, then detail type, then id. */
+  #edgeLabel(edge) {
+    const relationshipId = edge.relationshipId || null;
+    if (relationshipId && this.edgeLabels.relationTypes.get(relationshipId)) {
+      return this.edgeLabels.relationTypes.get(relationshipId);
+    }
+    const fieldId = edge.fieldId || null;
+    if (fieldId && this.edgeLabels.fields.get(fieldId)) {
+      return this.edgeLabels.fields.get(fieldId);
+    }
+    return fieldId ? String(fieldId) : undefined;
   }
 
   /** Push updated options (gravity, scaling, labels, interaction, ...) to the live network. */
   async applyConfiguration(options = {}) {
     this.options = { ...this.options, ...options };
     this.network?.setOptions(networkOptions(this.options));
+    this.navControls?.setVisibility(this.options.nativeControls);
   }
 
   async setSelection(recordIds) {
@@ -144,6 +189,8 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.popupAbortController?.abort();
     this.popup?.remove();
     this.popup = null;
+    this.navControls?.destroy();
+    this.navControls = null;
     this.network?.destroy();
     this.network = null;
     this.nodes = null;
@@ -301,7 +348,9 @@ function networkOptions(options) {
           },
     interaction: {
       hover: true,
-      navigationButtons: true,
+      // Custom pan/zoom overlay is rendered by NavControls instead - the
+      // native buttons are un-styleable PNG glyphs.
+      navigationButtons: false,
       keyboard: { enabled: true, bindToWindow: false },
       multiselect: true,
       tooltipDelay: popupDelaySeconds > 0 ? popupDelaySeconds * 1000 : 1000,

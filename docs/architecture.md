@@ -66,6 +66,30 @@ A fresh (non-merge) `load()` also reframes the viewport once the graph
 renders (`engine.fit()`); an incremental node expansion (`merge: true`) never
 does, so expanding a node doesn't recenter the view out from under the user.
 
+## Edge vocabulary (detail-type and relation-type labels)
+
+The graph endpoint reports edges by numeric id only: `fieldId` is a detail
+type (`dty_ID`), `relationshipId` is a relation-type term (`trm_ID`). After
+every `load()` the graph is first rendered with those numbers as fallback
+labels, then `GraphApplication.#resolveVocabulary()` resolves names through
+`VocabularyProvider` and swaps them in:
+
+- detail types: `GET /fields?details=name&dty_ID=1,3,16`;
+- relation types: `GET /trl?parentId=<id>` returns the direct child terms of
+  one term; `VocabularyProvider` walks it recursively (visited-set and
+  `maxTreeDepth` guarded) into a `{ id, label, children }` tree, then
+  `GET /trm?details=name&trm_ID=...` labels every node.
+
+Every id (hits and misses) is cached on the provider, so repeated loads and
+node expansions only fetch ids not seen before. Resolution is best-effort: a
+failed request leaves the numeric fallback in place. On success the adapter
+re-labels the rendered edges (`engine.setEdgeLabels`) and
+`heurist-graph-vocabulary-changed` fires.
+
+`getVocabulary()` returns `{ fields, relationTypes, relationTypeTrees }` and
+`getLegend()` adds a resolved `label` to each link group plus
+`relationTypeTrees` for the legend renderer.
+
 ## Filtered Result, Dataset, and Filter activation
 
 `GraphApplication` tracks its active source (`{type: "dataset"}` or
