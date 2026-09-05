@@ -2,7 +2,7 @@
  * @file graphConfigurationSchema.js
  * @brief Allowlist, normalization, and serialization for settings.
  * @project     Heurist academic knowledge management system
- * @package     heurist-data
+ * @package     heurist-graph
  * @link        https://HeuristNetwork.org
  * @copyright   (C) 2024 onwards Heurist Network
  * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -10,7 +10,7 @@
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
  * @since       8.0
  */
-import { createDataConfigurationDefaults } from "./graphConfigurationDefaults.js";
+import { createGraphConfigurationDefaults } from "./graphConfigurationDefaults.js";
 import {
   CONFIGURATION_MODES,
   boolean,
@@ -24,21 +24,21 @@ import {
   unwrapSettings,
 } from "./configurationUtils.js";
 
-export function normalizeDataConfigurationSettings(value = {}) {
-  const defaults = createDataConfigurationDefaults();
+export function normalizeGraphConfigurationSettings(value = {}) {
+  const defaults = createGraphConfigurationDefaults();
   const source = unwrapSettings(value);
   return {
     options: normalizeOptions(source.options || {}, defaults.options),
     config: normalizeConfig(source.config || {}, defaults.config),
   };
 }
-export function serializeDataConfigurationSettings(value = {}) {
+export function serializeGraphConfigurationSettings(value = {}) {
   return serializeConfigurationSettings(
     value,
-    normalizeDataConfigurationSettings,
+    normalizeGraphConfigurationSettings,
   );
 }
-export function normalizeDataConfigurationMode(value) {
+export function normalizeGraphConfigurationMode(value) {
   const mode = String(value || "preferences").toLowerCase();
   return CONFIGURATION_MODES.includes(mode) ? mode : "preferences";
 }

@@ -2,7 +2,7 @@
  * @file localizationAssets.test.js
  * @brief Tests localization asset completeness.
  * @project     Heurist academic knowledge management system
- * @package     heurist-data
+ * @package     heurist-graph
  * @link        https://HeuristNetwork.org
  * @copyright   (C) 2024 onwards Heurist Network
  * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -15,7 +15,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { parseLocale } from "../../src/ui/i18n/HResource.js";
+import { parseLocale } from "@heurist/client-core/ui";
 
 const assets = fileURLToPath(
   new URL("../../public/assets/localization/", import.meta.url),
@@ -38,7 +38,6 @@ test("every direct $HR string in runtime source is present in module dictionarie
   const sourceFiles = [
     "../../src/ui/config/GraphConfigurationDialog.js",
     "../../src/ui/FilterSelector.js",
-    "../../src/ui/PublishedDialog.js",
   ];
   const sources = await Promise.all(
     sourceFiles.map((file) =>

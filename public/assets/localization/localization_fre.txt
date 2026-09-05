@@ -78,6 +78,10 @@
 #Remove allowed filters#Retirer les filtres autorisés
 #Data controls#Contrôles des données
 #Show or hide data controls#Afficher ou masquer les contrôles des données
+#Graph controls#Contrôles du graphe
+#Show or hide graph controls#Afficher ou masquer les contrôles du graphe
+#Show or hide panels#Afficher ou masquer les panneaux
+#Help#Aide
 #Create new dataset#Créer un jeu de données
 #Pick fields#Choisir les champs
 #Apply#Appliquer

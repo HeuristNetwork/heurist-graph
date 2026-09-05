@@ -10,7 +10,7 @@
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
  * @since       8.0
  */
-import { applyI18n } from "./i18n/HResource.js";
+import { applyI18n } from "@heurist/client-core/ui";
 /** Renders Current Results and persisted Dataset choices. */
 export class DatasetSelector {
   constructor({ api, container, onError = null, classPrefix = "heurist-data" }) {

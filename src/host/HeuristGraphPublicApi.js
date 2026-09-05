@@ -11,7 +11,7 @@
  * @since       8.0
  */
 
-import { serializeDataConfigurationSettings } from "../ui/config/graphConfigurationSchema.js";
+import { serializeGraphConfigurationSettings } from "../ui/config/graphConfigurationSchema.js";
 
 export class HeuristGraphPublicApi {
   constructor(application) {
@@ -37,7 +37,7 @@ export class HeuristGraphPublicApi {
     const saved = (await this.application.host.loadPreferences?.()) ?? null;
     return this.configurationDialogFactory({ ...options, mode: "graph", value: saved || this.application.config.persistedSettings || {}, onSave: async (value, context) => {
       const result = await this.application.host.savePreferences?.(
-        serializeDataConfigurationSettings(value),
+        serializeGraphConfigurationSettings(value),
       );
       this.application.applyConfiguration(context.serialized);
       return options.onSave?.(value, context, result) ?? result;

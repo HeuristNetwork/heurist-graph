@@ -16,7 +16,7 @@ import {
   getGlobalBootstrap,
 } from "@heurist/client-core/host";
 import { resolveModuleBootstrap } from "@heurist/client-core/config";
-import { normalizeDataConfigurationSettings } from "./ui/config/graphConfigurationSchema.js";
+import { normalizeGraphConfigurationSettings } from "./ui/config/graphConfigurationSchema.js";
 
 export function getHeuristGraphConfig() {
   const bridge = getFrameHostBridge("heuristGraphHost");
@@ -29,7 +29,7 @@ export function getHeuristGraphConfig() {
   const hasPersistedSettings = Boolean(
     settings?.format || settings?.options || settings?.config,
   );
-  const persistedSettings = normalizeDataConfigurationSettings(settings);
+  const persistedSettings = normalizeGraphConfigurationSettings(settings);
   const source = bootstrap.source || bootstrap.state || {};
   const language = String(runtime.language || "eng").slice(0, 3).toLowerCase();
   return {

@@ -1,8 +1,8 @@
 /**
  * @file graphConfigurationDefaults.js
- * @brief Canonical persisted heurist-data configuration defaults.
+ * @brief Canonical persisted heurist-graph configuration defaults.
  * @project     Heurist academic knowledge management system
- * @package     heurist-data
+ * @package     heurist-graph
  * @link        https://HeuristNetwork.org
  * @copyright   (C) 2024 onwards Heurist Network
  * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -10,7 +10,7 @@
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
  * @since       8.0
  */
-export const HEURIST_DATA_OPTIONS_DEFAULTS = Object.freeze({
+export const HEURIST_GRAPH_OPTIONS_DEFAULTS = Object.freeze({
   ui: Object.freeze({
     showCurrentResults: true,
     showDatasets: true,
@@ -49,7 +49,7 @@ export const HEURIST_DATA_OPTIONS_DEFAULTS = Object.freeze({
   }),
 });
 
-export const HEURIST_DATA_CONFIG_DEFAULTS = Object.freeze({
+export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
   defaults: Object.freeze({
     engine: "datatables",
     viewMode: "card",
@@ -78,10 +78,10 @@ export const HEURIST_DATA_CONFIG_DEFAULTS = Object.freeze({
   }),
 });
 
-export function createDataConfigurationDefaults() {
+export function createGraphConfigurationDefaults() {
   return {
-    options: clone(HEURIST_DATA_OPTIONS_DEFAULTS),
-    config: clone(HEURIST_DATA_CONFIG_DEFAULTS),
+    options: clone(HEURIST_GRAPH_OPTIONS_DEFAULTS),
+    config: clone(HEURIST_GRAPH_CONFIG_DEFAULTS),
   };
 }
 function clone(value) {

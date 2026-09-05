@@ -16,7 +16,7 @@ import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import { getHeuristGraphConfig } from "./graphConfig.js";
 import { initHeuristGraph } from "./initHeuristGraph.js";
-import { initLocale } from "./ui/i18n/HResource.js";
+import { initLocale } from "@heurist/client-core/ui";
 
 const config = getHeuristGraphConfig();
 const bootstrap = initLocale(

@@ -1,8 +1,8 @@
 /**
  * @file GraphConfigurationDialog.js
- * @brief Reusable persistence-neutral editor for heurist-data settings.
+ * @brief Reusable persistence-neutral editor for heurist-graph settings.
  * @project     Heurist academic knowledge management system
- * @package     heurist-data
+ * @package     heurist-graph
  * @link        https://HeuristNetwork.org
  * @copyright   (C) 2024 onwards Heurist Network
  * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -11,14 +11,14 @@
  * @since       8.0
  */
 import {
-  normalizeDataConfigurationMode,
-  normalizeDataConfigurationSettings,
-  serializeDataConfigurationSettings,
+  normalizeGraphConfigurationMode,
+  normalizeGraphConfigurationSettings,
+  serializeGraphConfigurationSettings,
 } from "./graphConfigurationSchema.js";
-import { $HR, applyI18n } from "../i18n/HResource.js";
+import { $HR, applyI18n } from "@heurist/client-core/ui";
 
-/** Edits and serializes heurist-data settings in a modal dialog. */
-export class DataConfigurationDialog {
+/** Edits and serializes heurist-graph settings in a modal dialog. */
+export class GraphConfigurationDialog {
   constructor({
     mode = "preferences",
     value = null,
@@ -32,9 +32,9 @@ export class DataConfigurationDialog {
     widgetListProvider = null,
     publishContext = null,
   } = {}) {
-    this.mode = normalizeDataConfigurationMode(mode);
+    this.mode = normalizeGraphConfigurationMode(mode);
     this.value = prepareMode(
-      normalizeDataConfigurationSettings(value || {}),
+      normalizeGraphConfigurationSettings(value || {}),
       this.mode,
     );
     this.parent = parent;
@@ -52,23 +52,23 @@ export class DataConfigurationDialog {
 
   setValue(value) {
     this.value = prepareMode(
-      normalizeDataConfigurationSettings(value || {}),
+      normalizeGraphConfigurationSettings(value || {}),
       this.mode,
     );
     return this;
   }
   getValue() {
     if (this.form)
-      this.value = normalizeDataConfigurationSettings(this.readForm());
+      this.value = normalizeGraphConfigurationSettings(this.readForm());
     return clone(this.value);
   }
   serialize() {
-    return serializeDataConfigurationSettings(this.getValue());
+    return serializeGraphConfigurationSettings(this.getValue());
   }
 
   open() {
     if (typeof document === "undefined")
-      throw new Error("DataConfigurationDialog requires a browser document");
+      throw new Error("GraphConfigurationDialog requires a browser document");
     if (this.element) return this;
     this.previousFocus = document.activeElement;
     this.element = el("div", "heurist-data-config-backdrop");

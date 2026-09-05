@@ -10,7 +10,7 @@
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
  * @since       8.0
  */
-import { $HR } from "./i18n/HResource.js";
+import { $HR } from "@heurist/client-core/ui";
 /** Renders saved filters as selectable actions. */
 export class FilterSelector {
   constructor({

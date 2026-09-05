@@ -82,10 +82,10 @@ export class GraphApplication extends EventTarget {
     try {
       const saved = await this.host.loadPreferences();
       if (!saved) return;
-      const { normalizeDataConfigurationSettings } = await import(
+      const { normalizeGraphConfigurationSettings } = await import(
         "../ui/config/graphConfigurationSchema.js"
       );
-      const normalized = normalizeDataConfigurationSettings(saved);
+      const normalized = normalizeGraphConfigurationSettings(saved);
       this.config.persistedSettings = normalized;
       this.config.limits = {
         ...this.config.limits,

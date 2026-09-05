@@ -2,7 +2,7 @@
  * @file configurationSchema.test.js
  * @brief Tests configuration normalization and serialization.
  * @project     Heurist academic knowledge management system
- * @package     heurist-data
+ * @package     heurist-graph
  * @link        https://HeuristNetwork.org
  * @copyright   (C) 2024 onwards Heurist Network
  * @author      Artem Osmakov   <osmakov@gmail.com>
@@ -13,19 +13,19 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDataConfigurationDefaults } from "../../src/ui/config/graphConfigurationDefaults.js";
+import { createGraphConfigurationDefaults } from "../../src/ui/config/graphConfigurationDefaults.js";
 import {
-  normalizeDataConfigurationSettings,
-  serializeDataConfigurationSettings,
+  normalizeGraphConfigurationSettings,
+  serializeGraphConfigurationSettings,
 } from "../../src/ui/config/graphConfigurationSchema.js";
 import {
   CONFIGURATION_FORMAT,
   CONFIGURATION_VERSION,
 } from "../../src/ui/config/configurationUtils.js";
-import { DataConfigurationDialog } from "../../src/ui/config/GraphConfigurationDialog.js";
+import { GraphConfigurationDialog } from "../../src/ui/config/GraphConfigurationDialog.js";
 
-test("data configuration defaults expose the requested controls", () => {
-  const value = createDataConfigurationDefaults();
+test("graph configuration defaults expose the requested controls", () => {
+  const value = createGraphConfigurationDefaults();
   assert.equal(value.options.ui.showColumnPicker, true);
   assert.equal(value.options.nativeControls.export, true);
   assert.equal(value.options.datasets.allowAll, true);
@@ -48,30 +48,30 @@ test("data configuration defaults expose the requested controls", () => {
 
 test("page size accepts only configured choices and publication restricts interaction", () => {
   assert.equal(
-    normalizeDataConfigurationSettings({
+    normalizeGraphConfigurationSettings({
       config: { defaults: { pageSize: 500 } },
     }).config.defaults.pageSize,
     500,
   );
   assert.equal(
-    normalizeDataConfigurationSettings({
+    normalizeGraphConfigurationSettings({
       config: { defaults: { pageSize: 5000 } },
     }).config.defaults.pageSize,
     5000,
   );
   assert.equal(
-    normalizeDataConfigurationSettings({
+    normalizeGraphConfigurationSettings({
       config: { defaults: { pageSize: 25 } },
     }).config.defaults.pageSize,
     100,
   );
   assert.equal(
-    normalizeDataConfigurationSettings({
+    normalizeGraphConfigurationSettings({
       config: { defaults: { pageSize: 20 } },
     }).config.defaults.pageSize,
     100,
   );
-  const dialog = new DataConfigurationDialog({
+  const dialog = new GraphConfigurationDialog({
     mode: "publish",
     value: {
       options: { interaction: { persistentSelectionEnabled: true } },
@@ -87,7 +87,7 @@ test("page size accepts only configured choices and publication restricts intera
 });
 
 test("normalization allowlists values and clamps font size", () => {
-  const value = normalizeDataConfigurationSettings({
+  const value = normalizeGraphConfigurationSettings({
     options: {
       accessToken: "discard",
       datasets: { allowAll: false, allowed: [2, "3", 0, 2] },
@@ -110,12 +110,12 @@ test("normalization allowlists values and clamps font size", () => {
 });
 
 test("record-list engine and view mode are persisted and allowlisted", () => {
-  const value = normalizeDataConfigurationSettings({
+  const value = normalizeGraphConfigurationSettings({
     config: { defaults: { engine: "recordlist", viewMode: "table" } },
   });
   assert.equal(value.config.defaults.engine, "recordlist");
   assert.equal(value.config.defaults.viewMode, "table");
-  const invalid = normalizeDataConfigurationSettings({
+  const invalid = normalizeGraphConfigurationSettings({
     config: { defaults: { engine: "unknown", viewMode: "tiles" } },
   });
   assert.equal(invalid.config.defaults.engine, "datatables");
@@ -123,7 +123,7 @@ test("record-list engine and view mode are persisted and allowlisted", () => {
 });
 
 test("record-list card and extended templates are independent and migrate the legacy setting", () => {
-  const value = normalizeDataConfigurationSettings({
+  const value = normalizeGraphConfigurationSettings({
     config: {
       defaults: {
         cardTemplate: "compact.tpl",
@@ -134,7 +134,7 @@ test("record-list card and extended templates are independent and migrate the le
   assert.equal(value.config.defaults.cardTemplate, "compact.tpl");
   assert.equal(value.config.defaults.viewTemplate, "full.tpl");
 
-  const migrated = normalizeDataConfigurationSettings({
+  const migrated = normalizeGraphConfigurationSettings({
     config: {
       defaults: {
         popupTemplate: "legacy.tpl",
@@ -146,7 +146,7 @@ test("record-list card and extended templates are independent and migrate the le
   // heurist-graph reads the same setting directly for its node popup.
   assert.equal(migrated.config.defaults.popupTemplate, "legacy.tpl");
 
-  const standard = normalizeDataConfigurationSettings({
+  const standard = normalizeGraphConfigurationSettings({
     config: {
       defaults: {
         popupTemplate: "standard",
@@ -159,7 +159,7 @@ test("record-list card and extended templates are independent and migrate the le
 });
 
 test("heurist-graph appearance defaults are allowlisted and clamped", () => {
-  const value = normalizeDataConfigurationSettings({
+  const value = normalizeGraphConfigurationSettings({
     config: {
       defaults: {
         gravity: "tight",
@@ -174,14 +174,14 @@ test("heurist-graph appearance defaults are allowlisted and clamped", () => {
   assert.equal(value.config.defaults.labelLength, 20);
   assert.equal(value.config.defaults.popupDelay, 5);
 
-  const defaults = normalizeDataConfigurationSettings({});
+  const defaults = normalizeGraphConfigurationSettings({});
   assert.equal(defaults.config.defaults.gravity, "normal");
   assert.equal(defaults.config.defaults.scaling, true);
   assert.equal(defaults.config.defaults.labelLength, 40);
   assert.equal(defaults.config.defaults.popupDelay, 1);
   assert.equal(defaults.config.defaults.popupTemplate, null);
 
-  const invalidGravity = normalizeDataConfigurationSettings({
+  const invalidGravity = normalizeGraphConfigurationSettings({
     config: { defaults: { gravity: "extreme" } },
   });
   assert.equal(invalidGravity.config.defaults.gravity, "normal");
@@ -189,19 +189,19 @@ test("heurist-graph appearance defaults are allowlisted and clamped", () => {
 
 test("published UI language is restricted to available locale resources", () => {
   assert.equal(
-    normalizeDataConfigurationSettings({ options: { ui: { language: "fre" } } })
+    normalizeGraphConfigurationSettings({ options: { ui: { language: "fre" } } })
       .options.ui.language,
     "fre",
   );
   assert.equal(
-    normalizeDataConfigurationSettings({ options: { ui: { language: "spa" } } })
+    normalizeGraphConfigurationSettings({ options: { ui: { language: "spa" } } })
       .options.ui.language,
     "auto",
   );
 });
 
-test("serializer creates the heurist-data settings envelope", () => {
-  const value = serializeDataConfigurationSettings({
+test("serializer creates the heurist-graph settings envelope", () => {
+  const value = serializeGraphConfigurationSettings({
     options: { filters: { allowAll: false, allowed: [5] } },
   });
   assert.equal(value.format, CONFIGURATION_FORMAT);
@@ -210,7 +210,7 @@ test("serializer creates the heurist-data settings envelope", () => {
 });
 
 test("dialog is usable as a value object without a document", () => {
-  const dialog = new DataConfigurationDialog({
+  const dialog = new GraphConfigurationDialog({
     mode: "website",
     value: {
       options: { ui: { showOptions: true, showPublish: true } },
@@ -221,17 +221,17 @@ test("dialog is usable as a value object without a document", () => {
   assert.equal(value.options.ui.showOptions, true);
   assert.equal(value.options.ui.showPublish, false);
   assert.equal(value.config.currentResults.initialQuery, "t:10");
-  assert.equal(dialog.serialize().format, "heurist-data-settings");
+  assert.equal(dialog.serialize().format, "heurist-graph-settings");
 });
 
 test("Options visibility is fixed for preferences and publication but configurable for websites", () => {
-  const preferences = new DataConfigurationDialog({
+  const preferences = new GraphConfigurationDialog({
     mode: "preferences",
     value: {
       options: { ui: { showOptions: false } },
     },
   }).getValue();
-  const publication = new DataConfigurationDialog({
+  const publication = new GraphConfigurationDialog({
     mode: "publish",
     value: {
       options: { ui: { showOptions: true } },

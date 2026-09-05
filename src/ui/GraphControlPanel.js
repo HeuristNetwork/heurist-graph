@@ -4,7 +4,7 @@
  */
 import { DatasetSelector } from "./DatasetSelector.js";
 import { FilterSelector } from "./FilterSelector.js";
-import { $HR, applyI18n } from "./i18n/HResource.js";
+import { $HR, applyI18n, InlineHelp } from "@heurist/client-core/ui";
 
 export class GraphControlPanel {
   constructor({ api, container, datasetListProvider, datasetProvider, filterListProvider }) {
@@ -18,25 +18,31 @@ export class GraphControlPanel {
 
   async mount() {
     this.element = document.createElement("aside");
-    this.element.className = "heurist-graph-control-panel";
+    this.element.className = "heurist-module-control-panel with-source-header";
     this.element.setAttribute("aria-label", $HR("Graph controls"));
     const header = document.createElement("div");
-    header.className = "heurist-graph-panel-header";
-    const toggle = iconButton("fa-solid fa-layer-group", "Show or hide graph controls", () => this.toggleFullyCollapsed());
-    toggle.classList.add("heurist-graph-panel-toggle");
-    toggle.setAttribute("aria-expanded", "true");
-    header.append(toggle);
+    header.className = "heurist-module-panel-header";
+
+    this.angleToggle = iconButton("fa-solid fa-angle-up", "Show or hide panels", () => this.toggleBody());
+    this.angleToggle.classList.add("heurist-module-panel-angle-toggle");
+    header.append(this.angleToggle);
+
     this.actions = document.createElement("span");
-    this.actions.className = "heurist-graph-panel-actions";
+    this.actions.className = "heurist-module-panel-actions";
     this.expandButton = iconButton("fa-solid fa-diagram-project", "Expand graph", () => this.expandGraph());
     this.exportButton = iconButton("fa-solid fa-file-export", "Export Gephi", () => this.api.exportGephi?.());
+    this.helpButton = iconButton("fa-solid fa-circle-question", "Help", () => this.openHelp());
     this.optionsButton = iconButton("fa-solid fa-gear", "Options", () => this.api.openPreferencesDialog?.());
     this.publishButton = iconButton("fa-solid fa-share-nodes", "Publish", () => this.api.openPublishDialog?.());
-    this.actions.append(this.expandButton, this.exportButton, this.optionsButton, this.publishButton);
+    this.actions.append(this.expandButton, this.exportButton, this.helpButton, this.optionsButton, this.publishButton);
     header.append(this.actions);
 
+    const toggle = iconButton("fa-solid fa-layer-group", "Show or hide graph controls", () => this.toggleFullyCollapsed());
+    toggle.classList.add("heurist-module-panel-toggle");
+    header.append(toggle);
+
     const body = document.createElement("div");
-    body.className = "heurist-graph-panel-body";
+    body.className = "heurist-module-panel-body";
     const datasets = section(body, "Datasets");
     this.datasetsSection = datasets.section;
     this.datasetsSelector = new DatasetSelector({ api: this.api, container: datasets.content, classPrefix: "heurist-graph", onError: (error) => this.reportError(error) });
@@ -50,17 +56,15 @@ export class GraphControlPanel {
       onError: (error) => this.reportError(error),
     });
     this.element.append(header, body);
-    header.addEventListener("click", (event) => {
-      if (!event.target.closest(".heurist-graph-icon-button")) this.toggleBody();
-    });
     (this.container.parentElement || document.body).append(this.element);
     this.sourceHeader = document.createElement("div");
-    this.sourceHeader.className = "heurist-graph-source-header";
+    this.sourceHeader.className = "heurist-source-header";
     this.container.prepend(this.sourceHeader);
     this.bind("heurist-graph-loaded", () => this.render());
     this.applyVisibility();
     await this.render();
     applyI18n(this.element);
+    this.updateExpandedState();
     return this.element;
   }
 
@@ -88,23 +92,46 @@ export class GraphControlPanel {
   }
 
   toggleFullyCollapsed() {
-    const collapsed = this.element.classList.toggle("fully-collapsed");
-    this.updateExpandedState(!collapsed);
+    const fullyCollapsed = this.element.classList.toggle("fully-collapsed");
+    if (!fullyCollapsed) {
+      this.element.classList.toggle("body-collapsed", !this.hasVisiblePanels);
+    }
+    this.updateExpandedState();
   }
 
   toggleBody() {
     if (this.element.classList.contains("fully-collapsed")) return;
-    const collapsed = this.element.classList.toggle("body-collapsed");
-    this.updateExpandedState(!collapsed);
+    if (!this.hasVisiblePanels) {
+      this.toggleFullyCollapsed();
+      return;
+    }
+    this.element.classList.toggle("body-collapsed");
+    this.updateExpandedState();
   }
 
-  updateExpandedState(expanded) {
-    this.element.querySelector(".heurist-graph-panel-toggle")?.setAttribute("aria-expanded", String(expanded));
+  updateExpandedState() {
+    const fullyCollapsed = this.element.classList.contains("fully-collapsed");
+    const bodyCollapsed = this.element.classList.contains("body-collapsed");
+    this.element.querySelector(".heurist-module-panel-toggle")?.setAttribute("aria-expanded", String(!fullyCollapsed));
+    if (this.angleToggle) {
+      const expanded = !fullyCollapsed && !bodyCollapsed;
+      this.angleToggle.setAttribute("aria-expanded", String(expanded));
+      const icon = this.angleToggle.querySelector(".fa-solid");
+      icon?.classList.toggle("fa-angle-up", expanded);
+      icon?.classList.toggle("fa-angle-down", !expanded);
+    }
+  }
+
+  /** Load the module user manual for the active language into a full-viewport overlay. */
+  openHelp() {
+    this.helpOverlay ||= new InlineHelp({ moduleName: "graph" });
+    this.helpOverlay.open();
   }
 
   applyVisibility() {
     this.sourceHeader.hidden = false;
     this.hasVisiblePanels = true;
+    if (this.angleToggle) this.angleToggle.hidden = !this.hasVisiblePanels;
   }
 
   reportError(error) {
@@ -114,6 +141,7 @@ export class GraphControlPanel {
   destroy() {
     this.listeners.forEach(([name, handler]) => this.api.removeEventListener(name, handler));
     this.sourceHeader?.remove();
+    this.helpOverlay?.close();
     this.element?.remove();
   }
 }
@@ -132,7 +160,7 @@ function section(parent, title) {
 function iconButton(icon, title, handler) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "heurist-graph-icon-button";
+  button.className = "heurist-module-icon-button";
   button.title = $HR(title);
   button.setAttribute("aria-label", $HR(title));
   button.innerHTML = `<span class="${icon}" aria-hidden="true"></span>`;

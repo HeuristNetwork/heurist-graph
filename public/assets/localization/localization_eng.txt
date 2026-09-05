@@ -78,6 +78,10 @@
 #Remove allowed filters#Remove allowed filters
 #Data controls#Data controls
 #Show or hide data controls#Show or hide data controls
+#Graph controls#Graph controls
+#Show or hide graph controls#Show or hide graph controls
+#Show or hide panels#Show or hide panels
+#Help#Help
 #Create new dataset#Create new dataset
 #Pick fields#Pick fields
 #Apply#Apply
