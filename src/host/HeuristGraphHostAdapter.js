@@ -20,24 +20,6 @@ export class HeuristGraphHostAdapter extends HostAdapter {
 
   async initialize() {}
 
-  supportsEditing() {
-    return typeof this.bridge?.editRecord === "function";
-  }
-
-  async editRecord(recordId) {
-    if (!this.supportsEditing())
-      throw new Error("Record editing is not available from the Heurist host");
-    return this.bridge.editRecord(Number(recordId));
-  }
-
-  async addRecord(recordTypeId) {
-    const id = Number(recordTypeId);
-    if (!Number.isInteger(id) || id < 1 || typeof this.bridge?.addRecord !== "function") {
-      throw new Error("Record creation is not available from the Heurist host");
-    }
-    return this.bridge.addRecord(id);
-  }
-
   getCapabilities() {
     return {
       editing: this.supportsEditing(),
@@ -48,22 +30,6 @@ export class HeuristGraphHostAdapter extends HostAdapter {
 
   publishSelection(recordIds) {
     return this.bridge?.onSelection?.([...recordIds]);
-  }
-
-  requestCreateDataset() {
-    return this.bridge?.requestCreateDataset?.();
-  }
-
-  loadGraphPreferences() {
-    return this.loadPreferences();
-  }
-
-  saveGraphPreferences(settings) {
-    return this.savePreferences(settings);
-  }
-
-  publishGraph(payload) {
-    return this.publish(payload);
   }
 
   async destroy() {}

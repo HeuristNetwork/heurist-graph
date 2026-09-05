@@ -34,9 +34,9 @@ export class HeuristGraphPublicApi {
 
   async openPreferencesDialog(options = {}) {
     if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
-    const saved = (await this.application.host.loadGraphPreferences?.()) ?? null;
+    const saved = (await this.application.host.loadPreferences?.()) ?? null;
     return this.configurationDialogFactory({ ...options, mode: "graph", value: saved || this.application.config.persistedSettings || {}, onSave: async (value, context) => {
-      const result = await this.application.host.saveGraphPreferences?.(
+      const result = await this.application.host.savePreferences?.(
         serializeDataConfigurationSettings(value),
       );
       this.application.applyConfiguration(context.serialized);
@@ -47,7 +47,7 @@ export class HeuristGraphPublicApi {
   openPublishDialog(options = {}) {
     if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
     return this.configurationDialogFactory({ ...options, mode: "publish", value: this.application.config.persistedSettings || {}, onSave: async (value, context) => {
-      const result = await this.application.host.publishGraph?.({ format: "heurist-publication", version: 1, options: context.serialized.options, config: context.serialized.config, state: this.getState() });
+      const result = await this.application.host.publish?.({ format: "heurist-publication", version: 1, options: context.serialized.options, config: context.serialized.config, state: this.getState() });
       return options.onSave?.(value, context, result) ?? result;
     } });
   }
@@ -70,10 +70,6 @@ export class HeuristGraphPublicApi {
 
   fit() {
     return this.application.engine.fit();
-  }
-
-  requestCreateDataset() {
-    return this.application.host.requestCreateDataset?.();
   }
 
   exportGephi() {

@@ -51,6 +51,7 @@ export class GraphApplication extends EventTarget {
     this.canvasElement = container;
     this.messageElement = messageElement;
     await this.host?.initialize?.({ config: this.config });
+    await this._loadInitialPreferences();
     await this.engine.initialize({
       container,
       options: this.config.engineOptions,
@@ -64,6 +65,48 @@ export class GraphApplication extends EventTarget {
       this.#setEmptyState(true);
     }
     return this;
+  }
+
+  /**
+   * Load host-persisted settings before the engine's first render, matching
+   * heurist-data's DataApplication. This only runs when the bootstrap didn't
+   * already embed persisted settings (`config.loadPreferencesOnInit`), so a
+   * host that inlines settings at bootstrap never pays for a redundant fetch.
+   */
+  async _loadInitialPreferences() {
+    if (
+      !this.config.loadPreferencesOnInit ||
+      typeof this.host?.loadPreferences !== "function"
+    )
+      return;
+    try {
+      const saved = await this.host.loadPreferences();
+      if (!saved) return;
+      const { normalizeDataConfigurationSettings } = await import(
+        "../ui/config/graphConfigurationSchema.js"
+      );
+      const normalized = normalizeDataConfigurationSettings(saved);
+      this.config.persistedSettings = normalized;
+      this.config.limits = {
+        ...this.config.limits,
+        maxNodes:
+          Number(normalized.config.defaults.maxNodes) ||
+          this.config.limits.maxNodes,
+        maxEdges:
+          Number(normalized.config.defaults.maxEdges) ||
+          this.config.limits.maxEdges,
+      };
+      this.config.engineOptions = {
+        ...this.config.engineOptions,
+        gravity: normalized.config.defaults.gravity,
+        scaling: normalized.config.defaults.scaling,
+        labelMaxLength: normalized.config.defaults.labelLength,
+        popupDelay: normalized.config.defaults.popupDelay,
+        popupTemplate: normalized.config.defaults.popupTemplate,
+      };
+    } catch (error) {
+      this.dispatch("heurist-graph-error", { error, operation: "load-preferences" });
+    }
   }
 
   /**
@@ -377,6 +420,10 @@ export class GraphApplication extends EventTarget {
 
   resize() {
     return this.engine.resize();
+  }
+
+  dispatch(name, detail) {
+    this.dispatchEvent(new CustomEvent(name, { detail }));
   }
 
   async destroy() {

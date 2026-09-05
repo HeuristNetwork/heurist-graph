@@ -74,8 +74,8 @@ test("graph preferences round-trip through the keyed FrontController contract", 
     fetchImpl,
   });
 
-  await host.loadGraphPreferences();
-  await host.saveGraphPreferences({ format: "heurist-graph-settings" });
+  await host.loadPreferences();
+  await host.savePreferences({ format: "heurist-graph-settings" });
 
   assert.match(calls[0].url, /controller=UserController/);
   assert.match(calls[0].url, /action=get_prefs/);
@@ -84,7 +84,7 @@ test("graph preferences round-trip through the keyed FrontController contract", 
   assert.match(calls[1].init.body, /key=heurist-graph/);
 });
 
-test("publishGraph posts to the PublicationController with the graph module type", async () => {
+test("publish posts to the PublicationController with the graph module type", async () => {
   const calls = [];
   const fetchImpl = async (url, init = {}) => {
     calls.push({ url: String(url), init });
@@ -96,7 +96,7 @@ test("publishGraph posts to the PublicationController with the graph module type
     fetchImpl,
   });
 
-  const result = await host.publishGraph({ format: "heurist-publication" });
+  const result = await host.publish({ format: "heurist-publication" });
 
   assert.deepEqual(result, { id: "abc123" });
   assert.match(calls[0].url, /controller=PublicationController/);

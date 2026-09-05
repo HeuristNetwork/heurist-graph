@@ -28,12 +28,11 @@ export class GraphControlPanel {
     header.append(toggle);
     this.actions = document.createElement("span");
     this.actions.className = "heurist-graph-panel-actions";
-    this.createButton = iconButton("fa-solid fa-circle-plus", "Create new dataset", () => this.api.requestCreateDataset?.());
     this.expandButton = iconButton("fa-solid fa-diagram-project", "Expand graph", () => this.expandGraph());
     this.exportButton = iconButton("fa-solid fa-file-export", "Export Gephi", () => this.api.exportGephi?.());
     this.optionsButton = iconButton("fa-solid fa-gear", "Options", () => this.api.openPreferencesDialog?.());
     this.publishButton = iconButton("fa-solid fa-share-nodes", "Publish", () => this.api.openPublishDialog?.());
-    this.actions.append(this.createButton, this.expandButton, this.exportButton, this.optionsButton, this.publishButton);
+    this.actions.append(this.expandButton, this.exportButton, this.optionsButton, this.publishButton);
     header.append(this.actions);
 
     const body = document.createElement("div");

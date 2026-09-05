@@ -26,6 +26,9 @@ export function getHeuristGraphConfig() {
   });
   const runtime = bootstrap.runtime || {};
   const settings = bootstrap.settings || {};
+  const hasPersistedSettings = Boolean(
+    settings?.format || settings?.options || settings?.config,
+  );
   const persistedSettings = normalizeDataConfigurationSettings(settings);
   const source = bootstrap.source || bootstrap.state || {};
   const language = String(runtime.language || "eng").slice(0, 3).toLowerCase();
@@ -67,6 +70,11 @@ export function getHeuristGraphConfig() {
       popupTemplate: persistedSettings.config.defaults.popupTemplate,
     },
     persistedSettings,
+    loadPreferencesOnInit:
+      !hasPersistedSettings &&
+      !["website", "publish", "published"].includes(
+        String(runtime.runtimeMode || "").toLowerCase(),
+      ),
   };
 }
 
