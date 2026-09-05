@@ -36,12 +36,9 @@ test("every direct $HR string in runtime source is present in module dictionarie
     await readFile(`${assets}localization_eng.txt`, "utf8"),
   );
   const sourceFiles = [
-    "../../src/ui/config/DataConfigurationDialog.js",
-    "../../src/ui/DataControlPanel.js",
+    "../../src/ui/config/GraphConfigurationDialog.js",
     "../../src/ui/FilterSelector.js",
     "../../src/ui/PublishedDialog.js",
-    "../../src/engine/datatables/DataTablesAdapter.js",
-    "../../src/engine/recordlist/HRecordList.js",
   ];
   const sources = await Promise.all(
     sourceFiles.map((file) =>

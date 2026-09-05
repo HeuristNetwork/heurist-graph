@@ -13,16 +13,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDataConfigurationDefaults } from "../../src/ui/config/dataConfigurationDefaults.js";
+import { createDataConfigurationDefaults } from "../../src/ui/config/graphConfigurationDefaults.js";
 import {
   normalizeDataConfigurationSettings,
   serializeDataConfigurationSettings,
-} from "../../src/ui/config/dataConfigurationSchema.js";
+} from "../../src/ui/config/graphConfigurationSchema.js";
 import {
   CONFIGURATION_FORMAT,
   CONFIGURATION_VERSION,
 } from "../../src/ui/config/configurationUtils.js";
-import { DataConfigurationDialog } from "../../src/ui/config/DataConfigurationDialog.js";
+import { DataConfigurationDialog } from "../../src/ui/config/GraphConfigurationDialog.js";
 
 test("data configuration defaults expose the requested controls", () => {
   const value = createDataConfigurationDefaults();

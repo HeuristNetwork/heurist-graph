@@ -24,7 +24,7 @@ import { DatasetProvider } from "./data/DatasetProvider.js";
 import { FilterProvider } from "./data/FilterProvider.js";
 import { ReportTemplateProvider } from "./data/ReportTemplateProvider.js";
 import { RecordContentProvider } from "./data/RecordContentProvider.js";
-import { DataConfigurationDialog } from "./ui/config/DataConfigurationDialog.js";
+import { DataConfigurationDialog } from "./ui/config/GraphConfigurationDialog.js";
 
 export async function initHeuristGraph(config) {
   const container = document.getElementById(config.containerId);

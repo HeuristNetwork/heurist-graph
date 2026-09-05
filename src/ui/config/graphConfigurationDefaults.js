@@ -1,5 +1,5 @@
 /**
- * @file dataConfigurationDefaults.js
+ * @file graphConfigurationDefaults.js
  * @brief Canonical persisted heurist-data configuration defaults.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data

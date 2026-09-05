@@ -1,5 +1,5 @@
 /**
- * @file dataConfigurationSchema.js
+ * @file graphConfigurationSchema.js
  * @brief Allowlist, normalization, and serialization for settings.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data
@@ -10,7 +10,7 @@
  * @license     https://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
  * @since       8.0
  */
-import { createDataConfigurationDefaults } from "./dataConfigurationDefaults.js";
+import { createDataConfigurationDefaults } from "./graphConfigurationDefaults.js";
 import {
   CONFIGURATION_MODES,
   boolean,

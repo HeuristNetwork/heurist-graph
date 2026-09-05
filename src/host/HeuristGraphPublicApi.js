@@ -11,6 +11,8 @@
  * @since       8.0
  */
 
+import { serializeDataConfigurationSettings } from "../ui/config/graphConfigurationSchema.js";
+
 export class HeuristGraphPublicApi {
   constructor(application) {
     this.application = application;
@@ -30,18 +32,22 @@ export class HeuristGraphPublicApi {
     this.configurationDialogFactory = typeof factory === "function" ? factory : null;
   }
 
-  openPreferencesDialog(options = {}) {
+  async openPreferencesDialog(options = {}) {
     if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
-    return this.configurationDialogFactory({ ...options, mode: "graph", value: this.application.config.persistedSettings || {}, onSave: async (value, context) => {
+    const saved = (await this.application.host.loadGraphPreferences?.()) ?? null;
+    return this.configurationDialogFactory({ ...options, mode: "graph", value: saved || this.application.config.persistedSettings || {}, onSave: async (value, context) => {
+      const result = await this.application.host.saveGraphPreferences?.(
+        serializeDataConfigurationSettings(value),
+      );
       this.application.applyConfiguration(context.serialized);
-      return options.onSave?.(value, context);
+      return options.onSave?.(value, context, result) ?? result;
     } });
   }
 
   openPublishDialog(options = {}) {
     if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
     return this.configurationDialogFactory({ ...options, mode: "publish", value: this.application.config.persistedSettings || {}, onSave: async (value, context) => {
-      const result = await this.application.host.publishData?.({ format: "heurist-publication", version: 1, options: context.serialized.options, config: context.serialized.config, state: this.getState() });
+      const result = await this.application.host.publishGraph?.({ format: "heurist-publication", version: 1, options: context.serialized.options, config: context.serialized.config, state: this.getState() });
       return options.onSave?.(value, context, result) ?? result;
     } });
   }

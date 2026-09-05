@@ -16,7 +16,7 @@ import {
   getGlobalBootstrap,
 } from "@heurist/client-core/host";
 import { resolveModuleBootstrap } from "@heurist/client-core/config";
-import { normalizeDataConfigurationSettings } from "./ui/config/dataConfigurationSchema.js";
+import { normalizeDataConfigurationSettings } from "./ui/config/graphConfigurationSchema.js";
 
 export function getHeuristGraphConfig() {
   const bridge = getFrameHostBridge("heuristGraphHost");
@@ -38,7 +38,12 @@ export function getHeuristGraphConfig() {
     language: /^[a-z]{3}$/.test(language) ? language : "eng",
     localeBaseUrl: runtime.localeBaseUrl || runtime.moduleBaseUrl || null,
     host: runtime.baseUrl
-      ? { type: "heurist", baseUrl: runtime.baseUrl, bridge }
+      ? {
+          type: "heurist",
+          baseUrl: runtime.baseUrl,
+          database: runtime.database || null,
+          bridge,
+        }
       : null,
     searchRealm: runtime.searchRealm ?? runtime.search_realm ?? null,
     sourceId: runtime.source ?? runtime.sourceId ?? null,

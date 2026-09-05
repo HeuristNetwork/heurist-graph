@@ -14,12 +14,37 @@
 import { HostAdapter } from "@heurist/client-core/host";
 
 export class HeuristGraphHostAdapter extends HostAdapter {
-  constructor({ bridge = null } = {}) {
-    super();
-    this.bridge = bridge;
+  constructor({ bridge = null, baseUrl = null, database = null, fetchImpl = null } = {}) {
+    super({ bridge, baseUrl, database, fetchImpl, moduleType: "graph" });
   }
 
   async initialize() {}
+
+  supportsEditing() {
+    return typeof this.bridge?.editRecord === "function";
+  }
+
+  async editRecord(recordId) {
+    if (!this.supportsEditing())
+      throw new Error("Record editing is not available from the Heurist host");
+    return this.bridge.editRecord(Number(recordId));
+  }
+
+  async addRecord(recordTypeId) {
+    const id = Number(recordTypeId);
+    if (!Number.isInteger(id) || id < 1 || typeof this.bridge?.addRecord !== "function") {
+      throw new Error("Record creation is not available from the Heurist host");
+    }
+    return this.bridge.addRecord(id);
+  }
+
+  getCapabilities() {
+    return {
+      editing: this.supportsEditing(),
+      graphPreferences: Boolean(this.baseUrl && this.database),
+      graphPublishing: Boolean(this.baseUrl && this.database),
+    };
+  }
 
   publishSelection(recordIds) {
     return this.bridge?.onSelection?.([...recordIds]);
@@ -29,20 +54,16 @@ export class HeuristGraphHostAdapter extends HostAdapter {
     return this.bridge?.requestCreateDataset?.();
   }
 
-  publishData(payload) {
-    return this.bridge?.publishData?.(payload);
+  loadGraphPreferences() {
+    return this.loadPreferences();
   }
 
-  /** Whether the host can run a Heurist record search (delegate ON_REC_SEARCHSTART). */
-  supportsSearch() {
-    return typeof this.bridge?.doSearch === "function";
+  saveGraphPreferences(settings) {
+    return this.savePreferences(settings);
   }
 
-  /** Delegate a Current Results/Filter search to the host's global search engine. */
-  doSearch(request) {
-    if (!this.supportsSearch())
-      throw new Error("Host record search is unavailable");
-    return this.bridge.doSearch(request);
+  publishGraph(payload) {
+    return this.publish(payload);
   }
 
   async destroy() {}

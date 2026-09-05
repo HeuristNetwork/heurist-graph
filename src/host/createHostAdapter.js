@@ -13,11 +13,9 @@
 
 import { StandaloneHostAdapter } from "@heurist/client-core/host";
 import { HeuristGraphHostAdapter } from "./HeuristGraphHostAdapter.js";
-import { HeuristDataHostAdapter } from "./HeuristDataHostAdapter.js";
 
 export function createHostAdapter(host) {
   if (host?.type === "heurist") return new HeuristGraphHostAdapter(host);
-  if (host?.type === "heurist") return new HeuristDataHostAdapter(host);
   if (host) return host;
   return new StandaloneHostAdapter();
 }

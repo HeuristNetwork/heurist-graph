@@ -1,5 +1,5 @@
 /**
- * @file DataConfigurationDialog.js
+ * @file GraphConfigurationDialog.js
  * @brief Reusable persistence-neutral editor for heurist-data settings.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data
@@ -14,7 +14,7 @@ import {
   normalizeDataConfigurationMode,
   normalizeDataConfigurationSettings,
   serializeDataConfigurationSettings,
-} from "./dataConfigurationSchema.js";
+} from "./graphConfigurationSchema.js";
 import { $HR, applyI18n } from "../i18n/HResource.js";
 
 /** Edits and serializes heurist-data settings in a modal dialog. */
