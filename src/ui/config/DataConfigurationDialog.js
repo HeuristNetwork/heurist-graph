@@ -177,6 +177,19 @@ export class DataConfigurationDialog {
   buildGraphDefaults(body) {
     this.select(body, "config.defaults.maxNodes", "Nodes limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
     this.select(body, "config.defaults.maxEdges", "Edges limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
+    this.select(body, "config.defaults.gravity", "Gravity", [
+      ["loose", "Loose"],
+      ["normal", "Normal"],
+      ["tight", "Tight"],
+    ]);
+    body.append(
+      this.check("config.defaults.scaling", "Scale node size by connections"),
+    );
+    this.number(body, "config.defaults.labelLength", "Label length", 20, 100);
+    this.number(body, "config.defaults.popupDelay", "Popup delay (seconds)", 1, 5);
+    this.select(body, "config.defaults.popupTemplate", "Popup template", [
+      ["", "Built-in renderer (vis native)"],
+    ]);
     this.textarea(body, "config.defaults.emptyResultMessage", "Empty result message", 3);
     this.text(body, "config.defaults.nodeStyle", "Default node style");
     this.text(body, "config.defaults.edgeStyle", "Default edge style");
@@ -573,6 +586,7 @@ export class DataConfigurationDialog {
     const controls = [
       ["config.defaults.cardTemplate", "Built-in renderer"],
       ["config.defaults.viewTemplate", "Standard record view"],
+      ["config.defaults.popupTemplate", "Built-in renderer (vis native)"],
     ];
     controls.forEach(([path, defaultLabel]) => {
       const control = this.fields.get(path)?.control;

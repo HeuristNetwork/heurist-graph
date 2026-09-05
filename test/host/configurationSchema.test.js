@@ -143,6 +143,8 @@ test("record-list card and extended templates are independent and migrate the le
   });
   assert.equal(migrated.config.defaults.cardTemplate, "legacy.tpl");
   assert.equal(migrated.config.defaults.viewTemplate, "legacy.tpl");
+  // heurist-graph reads the same setting directly for its node popup.
+  assert.equal(migrated.config.defaults.popupTemplate, "legacy.tpl");
 
   const standard = normalizeDataConfigurationSettings({
     config: {
@@ -153,6 +155,36 @@ test("record-list card and extended templates are independent and migrate the le
   });
   assert.equal(standard.config.defaults.cardTemplate, null);
   assert.equal(standard.config.defaults.viewTemplate, null);
+  assert.equal(standard.config.defaults.popupTemplate, null);
+});
+
+test("heurist-graph appearance defaults are allowlisted and clamped", () => {
+  const value = normalizeDataConfigurationSettings({
+    config: {
+      defaults: {
+        gravity: "tight",
+        scaling: false,
+        labelLength: 15,
+        popupDelay: 9,
+      },
+    },
+  });
+  assert.equal(value.config.defaults.gravity, "tight");
+  assert.equal(value.config.defaults.scaling, false);
+  assert.equal(value.config.defaults.labelLength, 20);
+  assert.equal(value.config.defaults.popupDelay, 5);
+
+  const defaults = normalizeDataConfigurationSettings({});
+  assert.equal(defaults.config.defaults.gravity, "normal");
+  assert.equal(defaults.config.defaults.scaling, true);
+  assert.equal(defaults.config.defaults.labelLength, 40);
+  assert.equal(defaults.config.defaults.popupDelay, 1);
+  assert.equal(defaults.config.defaults.popupTemplate, null);
+
+  const invalidGravity = normalizeDataConfigurationSettings({
+    config: { defaults: { gravity: "extreme" } },
+  });
+  assert.equal(invalidGravity.config.defaults.gravity, "normal");
 });
 
 test("published UI language is restricted to available locale resources", () => {

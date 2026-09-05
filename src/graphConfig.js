@@ -40,6 +40,8 @@ export function getHeuristGraphConfig() {
     host: runtime.baseUrl
       ? { type: "heurist", baseUrl: runtime.baseUrl, bridge }
       : null,
+    searchRealm: runtime.searchRealm ?? runtime.search_realm ?? null,
+    sourceId: runtime.source ?? runtime.sourceId ?? null,
     query: source.query ?? null,
     rules: settings.rules ?? source.rules ?? [],
     links: normalizeLinks(settings.links ?? source.links),
@@ -51,7 +53,14 @@ export function getHeuristGraphConfig() {
     }),
     selection: normalizeIds(source.selection),
     engine: settings.engine || "vis-network",
-    engineOptions: settings.engineOptions || {},
+    engineOptions: {
+      ...settings.engineOptions,
+      gravity: persistedSettings.config.defaults.gravity,
+      scaling: persistedSettings.config.defaults.scaling,
+      labelMaxLength: persistedSettings.config.defaults.labelLength,
+      popupDelay: persistedSettings.config.defaults.popupDelay,
+      popupTemplate: persistedSettings.config.defaults.popupTemplate,
+    },
     persistedSettings,
   };
 }

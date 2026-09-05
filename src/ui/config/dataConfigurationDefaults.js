@@ -59,6 +59,12 @@ export const HEURIST_DATA_CONFIG_DEFAULTS = Object.freeze({
     emptyResultMessage: "No records",
     maxNodes: 5000,
     maxEdges: 10000,
+    // heurist-graph (vis-network) appearance defaults.
+    gravity: "normal",
+    scaling: true,
+    labelLength: 40,
+    popupDelay: 1,
+    popupTemplate: null,
     nodeStyle: null,
     edgeStyle: null,
     cardTemplate: null,

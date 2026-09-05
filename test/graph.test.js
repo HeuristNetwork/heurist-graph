@@ -258,6 +258,190 @@ test("HeuristGraphHostAdapter publishes selection through the bridge", async () 
   assert.deepEqual(selection, [3, 4]);
 });
 
+test("GraphApplication ignores a Current Results query while a Dataset is active, and activateCurrentResults restores the last remembered query", async () => {
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    destroy: async () => {},
+  };
+  const datasetProvider = {
+    load: async (id) => ({ id, title: "My dataset", source: { query: "t:20" } }),
+  };
+  const application = new GraphApplication({
+    config: { query: "t:10", selection: [], limits: {} },
+    provider: { load: async ({ query }) => ({ graph: new GraphDocument(graphEnvelope({})), query }) },
+    engine,
+    host: {},
+    datasetProvider,
+  });
+  await application.initialize({});
+  assert.equal(application.getState().query, "t:10");
+
+  await application.setDataset(5);
+  assert.equal(application.getState().datasetId, 5);
+  assert.equal(application.getState().query, "t:20");
+
+  // A host-driven Current Results query must not clobber the active Dataset,
+  // but it must still be remembered - heurist-data's "host search events keep
+  // Current Results up to date" - so reactivating Current Results afterward
+  // shows the latest search, not a stale one from before the Dataset was
+  // selected.
+  const result = await application.load({ query: "t:99" });
+  assert.equal(result.datasetId, 5);
+  assert.equal(application.getState().query, "t:20");
+
+  // Reactivating Current Results restores the latest remembered query (t:99),
+  // not the one that was active before the Dataset was selected (t:10).
+  await application.activateCurrentResults();
+  assert.equal(application.getState().datasetId, null);
+  assert.equal(application.getState().query, "t:99");
+});
+
+test("GraphApplication.load(null) always clears, deactivating an active Dataset", async () => {
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    destroy: async () => {},
+  };
+  const datasetProvider = {
+    load: async (id) => ({ id, source: { query: "t:20" } }),
+  };
+  const application = new GraphApplication({
+    config: { query: "t:10", selection: [], limits: {} },
+    provider: { load: async ({ query }) => ({ graph: new GraphDocument(graphEnvelope({})), query }) },
+    engine,
+    host: {},
+    datasetProvider,
+  });
+  await application.initialize({});
+  await application.setDataset(5);
+  assert.equal(application.getState().datasetId, 5);
+
+  await application.load({ query: null });
+  assert.equal(application.getState().datasetId, null);
+  assert.equal(application.getState().query, null);
+});
+
+test("GraphApplication.requestPopupContent loads content through the configured Popup template", async () => {
+  const application = new GraphApplication({
+    config: { selection: [], limits: {}, engineOptions: { popupTemplate: "custom-popup" } },
+    provider: { load: async () => ({ graph: new GraphDocument(graphEnvelope({})) }) },
+    engine: { initialize: async () => {} },
+    host: {},
+    recordContentProvider: {
+      load: async ({ records, template }) => {
+        assert.equal(template, "custom-popup");
+        assert.deepEqual(records, [{ rec_ID: 7 }]);
+        return new Map([[7, "<div>Custom</div>"]]);
+      },
+    },
+  });
+  const html = await application.requestPopupContent({ recordId: 7 });
+  assert.equal(html, "<div>Custom</div>");
+});
+
+test("GraphApplication.requestPopupContent is a no-op without a configured template", async () => {
+  const application = new GraphApplication({
+    config: { selection: [], limits: {}, engineOptions: {} },
+    provider: { load: async () => ({ graph: new GraphDocument(graphEnvelope({})) }) },
+    engine: { initialize: async () => {} },
+    host: {},
+    recordContentProvider: {
+      load: async () => assert.fail("must not fetch without a popupTemplate"),
+    },
+  });
+  const html = await application.requestPopupContent({ recordId: 7 });
+  assert.equal(html, null);
+});
+
+test("GraphApplication.activateFilter triggers the host search in hosted mode and loads locally in standalone mode", async () => {
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    destroy: async () => {},
+  };
+  let searchRequest = null;
+  const hostedApplication = new GraphApplication({
+    config: { selection: [], limits: {}, searchRealm: "graph1", sourceId: "graph1" },
+    provider: { load: async () => assert.fail("standalone load must not run in hosted mode") },
+    engine,
+    host: {
+      supportsSearch: () => true,
+      doSearch: (request) => {
+        searchRequest = request;
+      },
+    },
+  });
+  await hostedApplication.initialize({});
+  await hostedApplication.activateFilter({ id: 1, query: "t:30" });
+  assert.equal(searchRequest.q, "t:30");
+  assert.equal(searchRequest.search_realm, "graph1");
+
+  let loadedQuery = null;
+  const standaloneApplication = new GraphApplication({
+    config: { selection: [], limits: {} },
+    provider: {
+      load: async ({ query }) => {
+        loadedQuery = query;
+        return { graph: new GraphDocument(graphEnvelope({})), query };
+      },
+    },
+    engine,
+    host: {},
+  });
+  await standaloneApplication.initialize({});
+  await standaloneApplication.activateFilter({ id: 2, query: "t:40" });
+  assert.equal(loadedQuery, "t:40");
+});
+
+test("GraphApplication shows the configured empty-result message for a missing or empty query", async () => {
+  const engine = {
+    initialize: async () => {},
+    setGraph: async () => {},
+    mergeGraph: async () => {},
+    setSelection: async () => {},
+    destroy: async () => {},
+  };
+  const canvas = { hidden: false };
+  const message = { hidden: true, textContent: "" };
+  let requested = false;
+  const application = new GraphApplication({
+    config: {
+      selection: [],
+      limits: {},
+      persistedSettings: { config: { defaults: { emptyResultMessage: "Nothing to show" } } },
+    },
+    provider: {
+      load: async ({ query }) => {
+        requested = true;
+        return { graph: new GraphDocument(graphEnvelope({ records: [{ rec_ID: 1, rec_Title: "A" }] })), query };
+      },
+    },
+    engine,
+    host: {},
+  });
+  await application.initialize(canvas, { messageElement: message });
+  assert.equal(requested, false, "no query means no request");
+  assert.equal(canvas.hidden, true);
+  assert.equal(message.hidden, false);
+  assert.equal(message.textContent, "Nothing to show");
+
+  await application.load({ query: "t:10" });
+  assert.equal(requested, true);
+  assert.equal(canvas.hidden, false);
+  assert.equal(message.hidden, true);
+
+  await application.load({ query: null });
+  assert.equal(canvas.hidden, true);
+  assert.equal(message.hidden, false);
+});
+
 test("GraphApplication emits selection changes from the graph engine", async () => {
   let engineSelection;
   let publishedSelection;

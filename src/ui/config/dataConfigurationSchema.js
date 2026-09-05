@@ -166,6 +166,28 @@ function normalizeConfig(source, defaults) {
       ),
       maxNodes: enumValue(Number(configured.maxNodes), [1000, 5000, 10000, 25000], defaults.defaults.maxNodes),
       maxEdges: enumValue(Number(configured.maxEdges), [1000, 5000, 10000, 25000], defaults.defaults.maxEdges),
+      gravity: enumValue(
+        configured.gravity,
+        ["loose", "normal", "tight"],
+        defaults.defaults.gravity,
+      ),
+      scaling: boolean(configured.scaling, defaults.defaults.scaling),
+      labelLength: boundedNumber(
+        configured.labelLength,
+        defaults.defaults.labelLength,
+        20,
+        100,
+      ),
+      popupDelay: boundedNumber(
+        configured.popupDelay,
+        defaults.defaults.popupDelay,
+        1,
+        5,
+      ),
+      // Reuses the same raw `popupTemplate` setting the legacy migration
+      // above reads: heurist-graph's own popup uses it directly (a Heurist
+      // report template name, or null for the built-in vis-native popup).
+      popupTemplate: migratedTemplate,
       nodeStyle: nullableString(configured.nodeStyle),
       edgeStyle: nullableString(configured.edgeStyle),
       cardTemplate:

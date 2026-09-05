@@ -33,5 +33,17 @@ export class HeuristGraphHostAdapter extends HostAdapter {
     return this.bridge?.publishData?.(payload);
   }
 
+  /** Whether the host can run a Heurist record search (delegate ON_REC_SEARCHSTART). */
+  supportsSearch() {
+    return typeof this.bridge?.doSearch === "function";
+  }
+
+  /** Delegate a Current Results/Filter search to the host's global search engine. */
+  doSearch(request) {
+    if (!this.supportsSearch())
+      throw new Error("Host record search is unavailable");
+    return this.bridge.doSearch(request);
+  }
+
   async destroy() {}
 }
