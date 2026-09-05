@@ -109,6 +109,12 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     );
   }
 
+  /** Push updated options (gravity, scaling, labels, interaction, ...) to the live network. */
+  async applyConfiguration(options = {}) {
+    this.options = { ...this.options, ...options };
+    this.network?.setOptions(networkOptions(this.options));
+  }
+
   async setSelection(recordIds) {
     if (!this.network || !this.nodes) return;
     // A selection driven by another widget's ON_REC_SELECT event may name
@@ -160,6 +166,12 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
    */
   #showPopup(nodeId, position) {
     if (this.options?.customPopup === false) return;
+    // `popupEnabled` is the Configuration dialog's Interaction-section toggle
+    // (`options.interaction.popupEnabled`); `customPopup` is the raw
+    // engineOptions escape hatch. Either can disable the click popup; the
+    // native hover tooltip (`interaction.hover`/`title`, below) is a wholly
+    // separate vis-network feature and is never affected by this flag.
+    if (this.options?.popupEnabled === false) return;
     const node = this.nodes?.get(nodeId);
     if (!node || !this.container) return;
     if (!this.popup) {
@@ -294,6 +306,10 @@ function networkOptions(options) {
       multiselect: true,
       tooltipDelay: popupDelaySeconds > 0 ? popupDelaySeconds * 1000 : 1000,
       hideEdgesOnDrag: false,
+      // `selectionEnabled` is the Configuration dialog's Interaction-section
+      // toggle; `options.interaction` below remains the raw vis-network
+      // passthrough (e.g. a host overriding `multiselect`/`hideEdgesOnDrag`).
+      selectable: options.selectionEnabled !== false,
       ...options.interaction,
     },
     nodes: {

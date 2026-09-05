@@ -75,6 +75,10 @@ export async function initHeuristGraph(config) {
     await new GraphControlPanel({
       api,
       container,
+      options: {
+        ...config.ui,
+        currentResultsTitle: config.persistedSettings?.config?.currentResults?.title,
+      },
       datasetListProvider,
       datasetProvider: new DatasetProvider({ apiClient }),
       filterListProvider,

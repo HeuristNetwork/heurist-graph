@@ -258,7 +258,7 @@ test("HeuristGraphHostAdapter publishes selection through the bridge", async () 
   assert.deepEqual(selection, [3, 4]);
 });
 
-test("GraphApplication ignores a Current Results query while a Dataset is active, and activateCurrentResults restores the last remembered query", async () => {
+test("GraphApplication ignores a Filtered Result query while a Dataset is active, and activateCurrentResults restores the last remembered query", async () => {
   const engine = {
     initialize: async () => {},
     setGraph: async () => {},
@@ -283,16 +283,16 @@ test("GraphApplication ignores a Current Results query while a Dataset is active
   assert.equal(application.getState().datasetId, 5);
   assert.equal(application.getState().query, "t:20");
 
-  // A host-driven Current Results query must not clobber the active Dataset,
+  // A host-driven Filtered Result query must not clobber the active Dataset,
   // but it must still be remembered - heurist-data's "host search events keep
-  // Current Results up to date" - so reactivating Current Results afterward
+  // Filtered Result up to date" - so reactivating Filtered Result afterward
   // shows the latest search, not a stale one from before the Dataset was
   // selected.
   const result = await application.load({ query: "t:99" });
   assert.equal(result.datasetId, 5);
   assert.equal(application.getState().query, "t:20");
 
-  // Reactivating Current Results restores the latest remembered query (t:99),
+  // Reactivating Filtered Result restores the latest remembered query (t:99),
   // not the one that was active before the Dataset was selected (t:10).
   await application.activateCurrentResults();
   assert.equal(application.getState().datasetId, null);

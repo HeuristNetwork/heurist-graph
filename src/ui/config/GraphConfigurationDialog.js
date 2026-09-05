@@ -119,7 +119,7 @@ export class GraphConfigurationDialog {
     if (this.mode === "graph") {
       this.content.append(
         this.section("Default settings", (body) => this.buildGraphDefaults(body), true),
-        this.section("Current Result", (body) => this.buildCurrentResults(body), true),
+        this.section("Filtered Result", (body) => this.buildCurrentResults(body), true),
         this.section("Datasets and Filters", (body) => this.buildDatasetsAndFilters(body)),
         this.section("Interaction", (body) => this.buildGraphInteraction(body)),
       );
@@ -142,7 +142,7 @@ export class GraphConfigurationDialog {
         true,
       ),
       this.section(
-        "Current Results",
+        "Filtered Result",
         (body) => this.buildCurrentResults(body),
         true,
       ),
@@ -155,14 +155,15 @@ export class GraphConfigurationDialog {
 
   buildGraphInterface(body) {
     body.append(
-      this.check("options.ui.showCurrentResults", "Current results"),
+      this.check("options.ui.showCurrentResults", "Filtered Result"),
       this.check("options.ui.showDatasets", "Datasets"),
       this.check("options.ui.showFilters", "Filters"),
-      this.check("options.ui.initiallyExpanded", "Initially expanded"),
       this.check("options.ui.showSourceHeader", "Header"),
       this.check("options.ui.showExpand", "Expand graph"),
       this.check("options.ui.showOptions", "Options"),
       this.check("options.ui.showPublish", "Publish"),
+      this.separator(),
+      this.check("options.ui.initiallyExpanded", "Initially expanded"),
     );
     const controls = el("fieldset", "heurist-data-config-subgroup");
     const legend = el("legend", "h-i18n");
@@ -204,7 +205,7 @@ export class GraphConfigurationDialog {
 
   buildInterface(body) {
     body.append(
-      this.check("options.ui.showCurrentResults", "Current results"),
+      this.check("options.ui.showCurrentResults", "Filtered Result"),
       this.check("options.ui.showDatasets", "Datasets"),
       this.check("options.ui.showFilters", "Filters"),
     );

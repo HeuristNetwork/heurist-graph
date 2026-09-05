@@ -1,6 +1,6 @@
 /**
  * @file FilterSelector.js
- * @brief Renders saved filters as Current Results search actions.
+ * @brief Renders saved filters as Filtered Result search actions.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data
  * @link        https://HeuristNetwork.org

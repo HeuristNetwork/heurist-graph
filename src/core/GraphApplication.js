@@ -37,8 +37,8 @@ export class GraphApplication extends EventTarget {
     this.hiddenRecordTypes = new Set();
     this.hiddenLinks = new Set();
     // Active source tracking, mirroring heurist-data's DataApplication: a
-    // persisted Dataset "wins" against inbound Current Results queries until
-    // the viewer explicitly reactivates Current Results.
+    // persisted Dataset "wins" against inbound Filtered Result queries until
+    // the viewer explicitly reactivates Filtered Result.
     this.source = null;
     this.currentResultsQuery =
       config.query == null || config.query === "" ? null : config.query;
@@ -87,6 +87,7 @@ export class GraphApplication extends EventTarget {
       );
       const normalized = normalizeGraphConfigurationSettings(saved);
       this.config.persistedSettings = normalized;
+      this.config.ui = normalized.options.ui;
       this.config.limits = {
         ...this.config.limits,
         maxNodes:
@@ -103,6 +104,8 @@ export class GraphApplication extends EventTarget {
         labelMaxLength: normalized.config.defaults.labelLength,
         popupDelay: normalized.config.defaults.popupDelay,
         popupTemplate: normalized.config.defaults.popupTemplate,
+        selectionEnabled: normalized.options.interaction.selectionEnabled,
+        popupEnabled: normalized.options.interaction.popupEnabled,
       };
     } catch (error) {
       this.dispatch("heurist-graph-error", { error, operation: "load-preferences" });
@@ -114,19 +117,19 @@ export class GraphApplication extends EventTarget {
    *
    * A plain (non-merge) call is ignored while a persisted Dataset is the
    * active source - matching heurist-data's `DataApplication.setQuery()` -
-   * so a Current Results query the host pushes (a global search event, once
+   * so a Filtered Result query the host pushes (a global search event, once
    * applied after the widget becomes visible) never clobbers a Dataset the
    * viewer deliberately selected. Internal callers that manage `this.source`
    * themselves (`setDataset`, `activateCurrentResults`) pass `internal: true`
    * to bypass that guard.
    *
-   * Whatever the outcome, the *remembered* Current Results query is still
+   * Whatever the outcome, the *remembered* Filtered Result query is still
    * updated first (matching heurist-data's "host search events keep Current
    * Results up to date" comment) so `activateCurrentResults()` always
    * restores the latest one, even one that arrived while a Dataset was on
    * screen - not a stale query from before the Dataset was selected. Pass
    * `remember: false` to skip that (restoring/loading a Dataset's own query
-   * must never be remembered as a Current Results query).
+   * must never be remembered as a Filtered Result query).
    *
    * An explicit `null`/empty query always wins, even over an active Dataset -
    * it deactivates any Dataset and shows the empty-result message.
@@ -214,7 +217,7 @@ export class GraphApplication extends EventTarget {
     return this.load({ query, internal: true, remember: false });
   }
 
-  /** Restore the most recently remembered Current Results query, locally. */
+  /** Restore the most recently remembered Filtered Result query, locally. */
   activateCurrentResults() {
     this.config.datasetId = null;
     this.config.datasetTitle = null;
@@ -266,15 +269,47 @@ export class GraphApplication extends EventTarget {
     return content.get(id) ?? content.get(String(id)) ?? null;
   }
 
-  applyConfiguration(value) {
-    const settings = value?.options ? value : value?.config || value;
-    const defaults = settings?.config?.defaults || {};
+  /**
+   * Apply settings edited in the configuration dialog to the running
+   * application, matching heurist-data's `DataApplication.applyConfiguration()`:
+   * push the renderer-facing options into the live engine and re-render the
+   * current graph, and let `GraphControlPanel` react to the UI-facing options
+   * through the dispatched event, instead of only ever taking effect on the
+   * next full reload.
+   */
+  async applyConfiguration(value) {
+    const { normalizeGraphConfigurationSettings } = await import(
+      "../ui/config/graphConfigurationSchema.js"
+    );
+    const normalized = normalizeGraphConfigurationSettings(value);
+    const defaults = normalized.config.defaults;
+    this.config.persistedSettings = normalized;
+    this.config.ui = normalized.options.ui;
     this.config.limits = {
       ...this.config.limits,
       maxNodes: Number(defaults.maxNodes) || this.config.limits.maxNodes,
       maxEdges: Number(defaults.maxEdges) || this.config.limits.maxEdges,
     };
-    this.config.persistedSettings = value;
+    this.config.engineOptions = {
+      ...this.config.engineOptions,
+      gravity: defaults.gravity,
+      scaling: defaults.scaling,
+      labelMaxLength: defaults.labelLength,
+      popupDelay: defaults.popupDelay,
+      popupTemplate: defaults.popupTemplate,
+      selectionEnabled: normalized.options.interaction.selectionEnabled,
+      popupEnabled: normalized.options.interaction.popupEnabled,
+    };
+    await this.engine.applyConfiguration?.(this.config.engineOptions);
+    // Gravity/scaling/label length only take effect on vis-network through a
+    // fresh render (scaling recomputes each node's `value`, labels are
+    // re-truncated); re-render the graph already on screen instead of
+    // waiting for the next load()/expandNode().
+    await this.#renderVisible();
+    this.dispatch("heurist-graph-configuration-changed", {
+      options: normalized.options,
+      config: normalized.config,
+    });
     return this.getState();
   }
 

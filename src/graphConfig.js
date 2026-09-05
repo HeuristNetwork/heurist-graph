@@ -68,8 +68,11 @@ export function getHeuristGraphConfig() {
       labelMaxLength: persistedSettings.config.defaults.labelLength,
       popupDelay: persistedSettings.config.defaults.popupDelay,
       popupTemplate: persistedSettings.config.defaults.popupTemplate,
+      selectionEnabled: persistedSettings.options.interaction.selectionEnabled,
+      popupEnabled: persistedSettings.options.interaction.popupEnabled,
     },
     persistedSettings,
+    ui: persistedSettings.options.ui,
     loadPreferencesOnInit:
       !hasPersistedSettings &&
       !["website", "publish", "published"].includes(

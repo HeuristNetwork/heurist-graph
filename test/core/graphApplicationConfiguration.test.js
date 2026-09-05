@@ -122,3 +122,58 @@ test("a failed preference load dispatches an error but does not block initializa
   assert.equal(events.length, 1);
   assert.equal(events[0].operation, "load-preferences");
 });
+
+test("applyConfiguration pushes engine options live and re-renders the current graph", async () => {
+  let appliedOptions;
+  let renderedGraph;
+  const engine = {
+    initialize: async () => {},
+    setGraph: async (graph) => {
+      renderedGraph = graph;
+    },
+    setSelection: async () => {},
+    applyConfiguration: async (options) => {
+      appliedOptions = structuredClone(options);
+    },
+  };
+  const application = new GraphApplication({
+    config: baseConfig({ loadPreferencesOnInit: false }),
+    provider: {},
+    engine,
+    host: { initialize: async () => {} },
+  });
+  await application.initialize({ hidden: false });
+
+  const events = [];
+  application.addEventListener("heurist-graph-configuration-changed", (event) =>
+    events.push(event.detail),
+  );
+
+  const state = await application.applyConfiguration({
+    config: {
+      defaults: {
+        maxNodes: 25000,
+        maxEdges: 25000,
+        gravity: "tight",
+        scaling: false,
+        labelLength: 60,
+        popupDelay: 4,
+      },
+    },
+    options: {
+      interaction: { selectionEnabled: false, popupEnabled: false },
+    },
+  });
+
+  assert.equal(application.config.limits.maxNodes, 25000);
+  assert.equal(appliedOptions.gravity, "tight");
+  assert.equal(appliedOptions.scaling, false);
+  assert.equal(appliedOptions.labelMaxLength, 60);
+  assert.equal(appliedOptions.popupDelay, 4);
+  assert.equal(appliedOptions.selectionEnabled, false);
+  assert.equal(appliedOptions.popupEnabled, false);
+  assert.ok(renderedGraph, "the current graph is re-rendered so scaling/labels refresh immediately");
+  assert.equal(events.length, 1);
+  assert.equal(events[0].config.defaults.gravity, "tight");
+  assert.equal(state.limits, application.graph?.limits ?? null);
+});

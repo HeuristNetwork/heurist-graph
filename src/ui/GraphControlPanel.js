@@ -7,9 +7,10 @@ import { FilterSelector } from "./FilterSelector.js";
 import { $HR, applyI18n, InlineHelp } from "@heurist/client-core/ui";
 
 export class GraphControlPanel {
-  constructor({ api, container, datasetListProvider, datasetProvider, filterListProvider }) {
+  constructor({ api, container, options = {}, datasetListProvider, datasetProvider, filterListProvider }) {
     this.api = api;
     this.container = container;
+    this.options = options;
     this.datasetListProvider = datasetListProvider;
     this.datasetProvider = datasetProvider;
     this.filterListProvider = filterListProvider;
@@ -18,7 +19,7 @@ export class GraphControlPanel {
 
   async mount() {
     this.element = document.createElement("aside");
-    this.element.className = "heurist-module-control-panel with-source-header";
+    this.element.className = "heurist-module-control-panel";
     this.element.setAttribute("aria-label", $HR("Graph controls"));
     const header = document.createElement("div");
     header.className = "heurist-module-panel-header";
@@ -43,6 +44,7 @@ export class GraphControlPanel {
 
     const body = document.createElement("div");
     body.className = "heurist-module-panel-body";
+    this.body = body;
     const datasets = section(body, "Datasets");
     this.datasetsSection = datasets.section;
     this.datasetsSelector = new DatasetSelector({ api: this.api, container: datasets.content, classPrefix: "heurist-graph", onError: (error) => this.reportError(error) });
@@ -60,7 +62,12 @@ export class GraphControlPanel {
     this.sourceHeader = document.createElement("div");
     this.sourceHeader.className = "heurist-source-header";
     this.container.prepend(this.sourceHeader);
+    if (this.options.initiallyExpanded === false)
+      this.element.classList.add("fully-collapsed");
     this.bind("heurist-graph-loaded", () => this.render());
+    this.bind("heurist-graph-configuration-changed", (event) => {
+      void this.applyOptions(event.detail).catch((error) => this.reportError(error, "apply-options"));
+    });
     this.applyVisibility();
     await this.render();
     applyI18n(this.element);
@@ -75,14 +82,42 @@ export class GraphControlPanel {
 
   async render() {
     const state = this.api.getState();
-    this.sourceHeader.textContent = state.datasetTitle || $HR("Current result");
+    const currentTitle = this.options.currentResultsTitle || "Filtered Result";
+    this.sourceHeader.textContent =
+      state.datasetTitle ||
+      (currentTitle === "Filtered Result" ? $HR(currentTitle) : currentTitle);
     const [datasets, filters] = await Promise.all([
       this.datasetListProvider?.list?.() || [],
       this.filterListProvider?.list?.() || [],
     ]);
-    this.datasetsSelector.render(normalizeItems(datasets, "Dataset"), state.datasetId, !state.datasetId);
+    this.datasetsSelector.render(
+      normalizeItems(datasets, "Dataset"),
+      state.datasetId,
+      !state.datasetId,
+      {
+        showCurrentResults: this.options.showCurrentResults !== false,
+        currentResultsTitle: currentTitle,
+      },
+    );
     this.filtersSelector.render(normalizeItems(filters, "Filter"));
     applyI18n(this.element);
+  }
+
+  /** React to settings edited/saved in the Configuration dialog while the panel is mounted. */
+  async applyOptions(settings = {}) {
+    const options = settings.options || settings;
+    this.options = {
+      ...this.options,
+      ...options.ui,
+      currentResultsTitle:
+        settings.config?.currentResults?.title || this.options.currentResultsTitle,
+    };
+    this.element.classList.toggle(
+      "fully-collapsed",
+      this.options.initiallyExpanded === false,
+    );
+    this.applyVisibility();
+    await this.render();
   }
 
   async expandGraph() {
@@ -129,13 +164,47 @@ export class GraphControlPanel {
   }
 
   applyVisibility() {
-    this.sourceHeader.hidden = false;
-    this.hasVisiblePanels = true;
-    if (this.angleToggle) this.angleToggle.hidden = !this.hasVisiblePanels;
+    if (!this.element) return;
+    if (this.sourceHeader && !this.sourceHeader.isConnected)
+      this.container.prepend(this.sourceHeader);
+    if (this.expandButton)
+      this.expandButton.hidden = this.options.showExpand === false;
+    if (this.optionsButton)
+      this.optionsButton.hidden = this.options.showOptions === false;
+    if (this.publishButton)
+      this.publishButton.hidden = this.options.showPublish === false;
+    if (this.sourceHeader)
+      this.sourceHeader.hidden = this.options.showSourceHeader !== true;
+    this.element.classList.toggle(
+      "with-source-header",
+      this.options.showSourceHeader === true,
+    );
+    this.body?.classList.toggle(
+      "with-source-header",
+      this.options.showSourceHeader === true,
+    );
+    if (this.datasetsSection)
+      this.datasetsSection.hidden =
+        this.options.showDatasets === false &&
+        this.options.showCurrentResults === false;
+    if (this.filtersSection)
+      this.filtersSection.hidden = this.options.showFilters === false;
+    const hasVisiblePanel = [this.datasetsSection, this.filtersSection].some(
+      (section) => section && !section.hidden,
+    );
+    this.hasVisiblePanels = hasVisiblePanel;
+    if (this.angleToggle) this.angleToggle.hidden = !hasVisiblePanel;
+    if (
+      !hasVisiblePanel &&
+      !this.element.classList.contains("fully-collapsed")
+    ) {
+      this.element.classList.add("body-collapsed");
+    }
+    this.updateExpandedState();
   }
 
-  reportError(error) {
-    this.api.application?.dispatch?.("heurist-graph-error", { error });
+  reportError(error, operation) {
+    this.api.application?.dispatch?.("heurist-graph-error", { error, operation });
   }
 
   destroy() {

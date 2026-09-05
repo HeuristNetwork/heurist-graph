@@ -72,7 +72,7 @@ export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
   }),
   currentResults: Object.freeze({
     enabled: true,
-    title: "Current results",
+    title: "Filtered Result",
     initialQuery: null,
     filterBy: Object.freeze({ mode: "none", widgetId: null }),
   }),

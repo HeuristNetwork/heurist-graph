@@ -5,28 +5,30 @@ html, body, #heurist-graph { width: 100%; height: 100%; margin: 0; overflow: hid
   display: flex;
   flex-direction: column;
   position: relative;
-  padding: 4px !important;
   background: #fff;
 }
-.heurist-source-header { flex:0 0 auto; box-sizing:border-box; padding:10px 9px; overflow:hidden; border-bottom:1px solid #ccc; background:#f3f3f3; color:#285b82; font:600 14px/1.35 Arial,sans-serif; white-space:nowrap; text-overflow:ellipsis; }
-.heurist-module-control-panel { position:fixed; top:4px; right:4px; z-index:1100; width:min(300px,calc(100vw - 8px)); max-height:min(70vh,520px); overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; border:1px solid rgba(0,0,0,.22); border-radius:4px; box-shadow:0 2px 10px rgba(0,0,0,.22); font:12px/1.35 Arial,sans-serif; color:#222; }
+.heurist-source-header { flex:0 0 auto; z-index:2; box-sizing:border-box; color:#285b82; white-space:nowrap; text-overflow:ellipsis; background:#f2f2f2; border-bottom:1px solid #ccc; height:36px; padding:10px 9px; font:600 14px/1.35 Arial,sans-serif; overflow:hidden; }
+.heurist-module-control-panel { position:fixed; top:4px; right:4px; z-index:1100; width:min(300px,calc(100vw - 8px)); max-height:min(70vh,520px); overflow:hidden; display:flex; flex-direction:column; box-sizing:border-box; background:#fff; border:1px solid #ccc; border-radius:4px; font:12px/1.35 Arial,sans-serif; color:#222; }
 .heurist-module-control-panel[hidden], .heurist-module-control-panel [hidden] { display:none !important; }
-.heurist-module-panel-header { display:flex; align-items:center; gap:7px; min-height:32px; padding:0 7px; box-sizing:border-box; background:#f2f2f2 !important; border-bottom:1px solid #d5d5d5; }
+.heurist-module-panel-header { display:flex; align-items:center; gap:7px; min-height:32px; padding:0px; box-sizing:border-box; background:#f2f2f2 !important; border-bottom:1px solid #ccc; }
 .heurist-module-panel-actions { display:flex; gap:2px; margin-left:auto; }
-.heurist-module-panel-body { overflow:auto; }
+.heurist-module-panel-body { overflow:auto; border:none; }
 .heurist-module-control-panel.body-collapsed .heurist-module-panel-body { display:none; }
 .heurist-module-control-panel.fully-collapsed { width:30px; height:30px; }
 .heurist-module-control-panel.fully-collapsed .heurist-module-panel-header { width:30px; height:30px; padding:0; border:0; overflow:hidden; }
 .heurist-module-control-panel.fully-collapsed .heurist-module-panel-header>:not(.heurist-module-panel-toggle), .heurist-module-control-panel.fully-collapsed .heurist-module-panel-body { display:none; }
+.heurist-module-control-panel.fully-collapsed .heurist-module-panel-toggle { margin-left:0; }
 .heurist-module-panel-toggle { width:30px; height:30px; padding:0 !important; margin-left:8px; }
-.heurist-module-icon-button { border:0; background:transparent; padding:4px; color:#444; cursor:pointer; }
+.heurist-module-panel-toggle:focus-visible { outline:none; }
+.heurist-module-icon-button { border:0; background:transparent; padding:4px; color:#444; cursor:pointer; font-size:14px; }
 .heurist-module-icon-button:hover { background:#e7e7e7; }
-.heurist-module-control-panel.with-source-header { top:44px; }
+.heurist-module-control-panel.with-source-header { border:1px solid #f3f3f3; }
+.heurist-module-panel-body.with-source-header { border:1px solid #ccc; border-radius:4px; border-top:none; }
 .heurist-graph-query { display:grid; gap:4px; }
 .heurist-graph-query input { box-sizing:border-box; width:100%; padding:5px 7px; border:1px solid #aaa; border-radius:3px; }
 .heurist-graph-actions { display:flex; gap:6px; margin-top:7px; }
 .heurist-graph-actions button { padding:5px 9px; border:1px solid #999; border-radius:3px; background:#fff; cursor:pointer; }
-.heurist-module-control-panel section { padding:7px 4px; border-top:1px solid #ddd; }
+.heurist-module-panel-body section { padding:7px 4px; }
 .heurist-module-control-panel h3 { margin:0 0 5px; font-size:13px; color:#285b82; }
 .heurist-graph-dataset-row { display:flex !important; align-items:center; gap:6px; min-height:28px; cursor:pointer; }
 .heurist-graph-dataset-row.active { font-weight:600; }
@@ -37,7 +39,7 @@ html, body, #heurist-graph { width: 100%; height: 100%; margin: 0; overflow: hid
 .heurist-graph-toolbar button { padding:5px 9px; border:1px solid #999; border-radius:3px; background:#fff; cursor:pointer; }
 .heurist-graph-toolbar button:hover { background:#e7e7e7; }
 .heurist-graph-status { margin-left:auto; color:#666; font-size:12px; }
-.heurist-graph-canvas { flex:1 1 0; min-height:0; overflow:hidden; position:relative; }
+.heurist-graph-canvas { flex:1 1 0; min-height:0; overflow:hidden; position:relative; padding:4px }
 .heurist-graph-message { display:grid; height:100%; place-items:center; color:#666; }
 .heurist-graph-message[hidden] { display:none !important; }
 .heurist-graph-popup {

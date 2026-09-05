@@ -63,7 +63,7 @@ test("DatasetLoader can request only presentation fields", async () => {
   assert.deepEqual(request.fields, ["rec_OwnerName", "rec_ThumbnailURL"]);
 });
 
-test("QueryLoader creates a transient Current results Dataset", async () => {
+test("QueryLoader creates a transient Filtered Result Dataset", async () => {
   const loader = new QueryLoader({
     recordDataProvider: {
       load: async () => ({ records: [], meta: {}, pagination: {} }),
@@ -71,7 +71,7 @@ test("QueryLoader creates a transient Current results Dataset", async () => {
   });
   const result = await loader.load({ query: "ids:1,2" });
   assert.equal(result.dataset.id, null);
-  assert.equal(result.dataset.title, "Current results");
+  assert.equal(result.dataset.title, "Filtered Result");
   assert.deepEqual(result.dataset.getFieldCodes(), [
     "rec_Title",
     "rec_RecTypeID",

@@ -28,6 +28,9 @@ export class GraphEngineAdapter {
     throw new Error("GraphEngineAdapter.setSelection() is not implemented");
   }
 
+  /** Apply updated engine options to an already-initialized engine, live. */
+  async applyConfiguration() {}
+
   async fit() {
     throw new Error("GraphEngineAdapter.fit() is not implemented");
   }

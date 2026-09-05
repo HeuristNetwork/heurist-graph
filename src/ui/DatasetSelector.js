@@ -1,6 +1,6 @@
 /**
  * @file DatasetSelector.js
- * @brief Renders Current Results and available persisted datasets.
+ * @brief Renders Filtered Result and available persisted datasets.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data
  * @link        https://HeuristNetwork.org
@@ -11,7 +11,7 @@
  * @since       8.0
  */
 import { applyI18n } from "@heurist/client-core/ui";
-/** Renders Current Results and persisted Dataset choices. */
+/** Renders Filtered Result and persisted Dataset choices. */
 export class DatasetSelector {
   constructor({ api, container, onError = null, classPrefix = "heurist-data" }) {
     this.api = api;
@@ -24,7 +24,7 @@ export class DatasetSelector {
     datasets,
     activeId,
     currentResultsActive,
-    { showCurrentResults = true, currentResultsTitle = "Current result" } = {},
+    { showCurrentResults = true, currentResultsTitle = "Filtered Result" } = {},
   ) {
     this.container.replaceChildren();
     if (showCurrentResults) {
@@ -33,7 +33,7 @@ export class DatasetSelector {
           {
             id: null,
             title: currentResultsTitle,
-            i18n: currentResultsTitle === "Current result",
+            i18n: currentResultsTitle === "Filtered Result",
           },
           currentResultsActive,
           () => {

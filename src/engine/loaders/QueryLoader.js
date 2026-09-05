@@ -1,6 +1,6 @@
 /**
  * @file QueryLoader.js
- * @brief Loads transient Current Results datasets.
+ * @brief Loads transient Filtered Result datasets.
  * @project     Heurist academic knowledge management system
  * @package     heurist-data
  * @link        https://HeuristNetwork.org
@@ -13,7 +13,7 @@
 
 import { Dataset, normalizeDatasetFields } from "../../core/Dataset.js";
 
-/** Loads a transient Dataset from a Current Results query. */
+/** Loads a transient Dataset from a Filtered Result query. */
 export class QueryLoader {
   constructor({ recordDataProvider }) {
     this.recordDataProvider = recordDataProvider;
@@ -38,7 +38,7 @@ export class QueryLoader {
           ],
     );
     const dataset = new Dataset({
-      title: "Current results",
+      title: "Filtered Result",
       source: { type: "heurist-query", query },
       fields: normalizedFields,
     });

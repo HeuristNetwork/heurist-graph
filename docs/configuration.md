@@ -85,6 +85,16 @@ adapter's own default for that key.
 - `customPopup`: `false` disables the click popup entirely, keeping only the
   native hover tooltip; `popupRenderer(node)` overrides its content - see
   "Node popups" below.
+- `popupEnabled`: boolean, default `true` - the Configuration dialog's
+  Interaction-section "Enable popups" toggle (`options.interaction.popupEnabled`,
+  threaded in by `graphConfig.js`/`GraphApplication`). `false` has the same
+  effect as `customPopup: false`; the native hover tooltip is unaffected
+  either way - see "Node popups" below.
+- `selectionEnabled`: boolean, default `true` - the Configuration dialog's
+  Interaction-section "Enable selection" toggle
+  (`options.interaction.selectionEnabled`). Maps to vis-network's
+  `interaction.selectable`; `false` disables click/box selection of nodes
+  and edges entirely.
 
 Other useful `vis-network` appearance settings, passed through their raw
 objects:
@@ -138,8 +148,12 @@ near it, resolved in order:
    `label`, `title`, and `recordTypeId`).
 3. A small built-in title/type card.
 
-Set `customPopup: false` to disable the click popup entirely and keep only
-the native hover tooltip.
+Set `customPopup: false` (or the Configuration dialog's Interaction-section
+"Enable popups" toggle, `popupEnabled`) to disable the click popup entirely
+and keep only the native hover tooltip. The two are independent vis-network
+features - disabling the click popup never disables the hover tooltip, and
+there is currently no setting that disables the hover tooltip while keeping
+the click popup.
 
 ## Public API
 
