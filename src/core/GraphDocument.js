@@ -16,8 +16,8 @@ export class GraphDocument {
     const graph = value.graph || value;
     this.records = normalizeRecords(graph.records || graph.nodes);
     this.edges = normalizeEdges(graph.edges);
-    this.paths =
-      graph.paths && typeof graph.paths === "object" ? { ...graph.paths } : {};
+    this.links = normalizeMap(graph.links);
+    this.paths = normalizeMap(graph.paths);
     this.limits =
       graph.limits && typeof graph.limits === "object"
         ? { ...graph.limits }
@@ -35,6 +35,7 @@ export class GraphDocument {
     return new GraphDocument({
       records: [...records.values()],
       edges: [...edges.values()],
+      links: { ...this.links, ...next.links },
       paths: { ...this.paths, ...next.paths },
       limits: next.limits || this.limits,
     });
@@ -43,6 +44,12 @@ export class GraphDocument {
   get recordIds() {
     return this.records.map((record) => record.id);
   }
+}
+
+function normalizeMap(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...value }
+    : {};
 }
 
 function normalizeRecords(records) {
@@ -68,18 +75,27 @@ function normalizeEdges(edges) {
       const fieldId = Number(edge?.fieldId ?? edge?.field) || null;
       const relationshipId =
         Number(edge?.relationshipId ?? edge?.relationship) || null;
+      const link = textOrNull(edge?.link);
+      const path = textOrNull(edge?.path ?? edge?.pathId);
       return {
         id: String(
           edge?.id ??
-            `${source}:${target}:${fieldId || 0}:${relationshipId || 0}`,
+            `${source}:${target}:${fieldId || 0}:${relationshipId || 0}${
+              link ? `:${link}` : ""
+            }`,
         ),
         from: source,
         to: target,
         fieldId,
         relationshipId,
-        pathId: edge?.pathId == null ? null : String(edge.pathId),
+        link,
+        path,
         raw: edge,
       };
     })
     .filter((edge) => edge.from > 0 && edge.to > 0);
+}
+
+function textOrNull(value) {
+  return value == null || value === "" ? null : String(value);
 }

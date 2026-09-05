@@ -11,6 +11,8 @@
  * @since       8.0
  */
 
+import { GraphDocument } from "./GraphDocument.js";
+
 export class GraphApplication extends EventTarget {
   constructor({ config, provider, engine, host, datasetProvider = null }) {
     super();
@@ -23,6 +25,9 @@ export class GraphApplication extends EventTarget {
     this.selection = normalizeIds(config.selection);
     this.abortController = null;
     this.generation = 0;
+    // Legend state: record types and link groups the viewer has hidden.
+    this.hiddenRecordTypes = new Set();
+    this.hiddenLinks = new Set();
   }
 
   async initialize(container) {
@@ -41,16 +46,21 @@ export class GraphApplication extends EventTarget {
 
   async load({
     query = this.config.query,
-    rules = this.config.rules,
+    links,
     merge = false,
   } = {}) {
     const generation = ++this.generation;
     this.abortController?.abort("Superseded graph request");
     this.abortController = new AbortController();
+    // An incremental expansion never re-runs internal-edge discovery; the
+    // initial graph and a Saved Filter default to discovering every edge until
+    // a Dataset supplies an explicit link set.
+    const linkSelection = merge
+      ? undefined
+      : links ?? this.config.links ?? "all";
     const result = await this.provider.load({
       query,
-      rules,
-      fields: this.config.fields,
+      links: linkSelection,
       limits: this.config.limits,
       signal: this.abortController.signal,
     });
@@ -59,9 +69,10 @@ export class GraphApplication extends EventTarget {
     this.graph =
       merge && this.graph ? this.graph.merge(result.graph) : result.graph;
     this.config.query = query;
+    const visible = this.#filterGraph(this.graph);
     await (merge
-      ? this.engine.mergeGraph(this.graph)
-      : this.engine.setGraph(this.graph));
+      ? this.engine.mergeGraph(visible)
+      : this.engine.setGraph(visible));
     await this.engine.setSelection(this.selection);
     this.dispatchEvent(
       new CustomEvent("heurist-graph-loaded", { detail: result }),
@@ -117,6 +128,89 @@ export class GraphApplication extends EventTarget {
     return true;
   }
 
+  /**
+   * Legend model derived from the loaded graph: node counts by record type and
+   * edge counts by link group, each with its current visibility flag.
+   */
+  getLegend() {
+    const recordTypes = new Map();
+    const links = new Map();
+    for (const record of this.graph?.records || []) {
+      const key = record.recordTypeId || 0;
+      recordTypes.set(key, (recordTypes.get(key) || 0) + 1);
+    }
+    for (const edge of this.graph?.edges || []) {
+      const key = edgeGroupKey(edge);
+      const entry = links.get(key) || {
+        key,
+        count: 0,
+        link: edge.link || null,
+        path: edge.path || null,
+        fieldId: edge.fieldId || null,
+        relationshipId: edge.relationshipId || null,
+        spec: (edge.link && this.graph?.links?.[edge.link]) || null,
+      };
+      entry.count += 1;
+      links.set(key, entry);
+    }
+    return {
+      recordTypes: [...recordTypes.entries()].map(([recordTypeId, count]) => ({
+        recordTypeId,
+        count,
+        visible: !this.hiddenRecordTypes.has(recordTypeId),
+      })),
+      links: [...links.values()].map((entry) => ({
+        ...entry,
+        visible: !this.hiddenLinks.has(entry.key),
+      })),
+    };
+  }
+
+  /** Show or hide every node of one record type without reloading. */
+  async setRecordTypeVisibility(recordTypeId, visible) {
+    const key = Number(recordTypeId) || 0;
+    if (visible === false) this.hiddenRecordTypes.add(key);
+    else this.hiddenRecordTypes.delete(key);
+    await this.#renderVisible();
+    return this.getLegend();
+  }
+
+  /** Show or hide every edge of one link group without reloading. */
+  async setLinkVisibility(key, visible) {
+    const group = String(key);
+    if (visible === false) this.hiddenLinks.add(group);
+    else this.hiddenLinks.delete(group);
+    await this.#renderVisible();
+    return this.getLegend();
+  }
+
+  async #renderVisible() {
+    await this.engine.setGraph(this.#filterGraph(this.graph || new GraphDocument()));
+    await this.engine.setSelection(this.selection);
+  }
+
+  /** Drop hidden record types, hidden link groups, and now-dangling edges. */
+  #filterGraph(graph) {
+    if (!this.hiddenRecordTypes.size && !this.hiddenLinks.size) return graph;
+    const records = graph.records.filter(
+      (record) => !this.hiddenRecordTypes.has(record.recordTypeId || 0),
+    );
+    const visibleIds = new Set(records.map((record) => record.id));
+    const edges = graph.edges.filter(
+      (edge) =>
+        !this.hiddenLinks.has(edgeGroupKey(edge)) &&
+        visibleIds.has(edge.from) &&
+        visibleIds.has(edge.to),
+    );
+    return new GraphDocument({
+      records,
+      edges,
+      links: graph.links,
+      paths: graph.paths,
+      limits: graph.limits,
+    });
+  }
+
   async setSelection(recordIds, { fromEngine = false } = {}) {
     this.selection = normalizeIds(recordIds);
     if (!fromEngine) await this.engine.setSelection(this.selection);
@@ -140,6 +234,7 @@ export class GraphApplication extends EventTarget {
       datasetTitle: this.config.datasetTitle || null,
       selection: [...this.selection],
       recordIds: this.graph?.recordIds || [],
+      limits: this.graph?.limits || null,
     };
   }
 
@@ -153,6 +248,15 @@ export class GraphApplication extends EventTarget {
     await this.engine.destroy();
     await this.host?.destroy?.();
   }
+}
+
+/** Stable key that groups edges by configured link, then field, then relation. */
+function edgeGroupKey(edge) {
+  if (edge.link) return `link:${edge.link}`;
+  if (edge.path) return `path:${edge.path}`;
+  if (edge.fieldId) return `field:${edge.fieldId}`;
+  if (edge.relationshipId) return `relationship:${edge.relationshipId}`;
+  return "other";
 }
 
 function normalizeIds(value) {

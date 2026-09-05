@@ -42,6 +42,7 @@ export function getHeuristGraphConfig() {
       : null,
     query: source.query ?? null,
     rules: settings.rules ?? source.rules ?? [],
+    links: normalizeLinks(settings.links ?? source.links),
     fields: normalizeFields(settings.fields ?? source.fields),
     limits: normalizeLimits({
       ...settings.limits,
@@ -53,6 +54,17 @@ export function getHeuristGraphConfig() {
     engineOptions: settings.engineOptions || {},
     persistedSettings,
   };
+}
+
+function normalizeLinks(value) {
+  if (value == null || value === "") return "all";
+  const values = Array.isArray(value) ? value : String(value).split(",");
+  const specs = [
+    ...new Set(values.map((spec) => String(spec).trim()).filter(Boolean)),
+  ];
+  if (!specs.length || specs.some((spec) => spec.toLowerCase() === "all"))
+    return "all";
+  return specs;
 }
 
 function normalizeFields(value) {

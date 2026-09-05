@@ -9,7 +9,7 @@ HeuristGraphPublicApi
        -> GraphEngineAdapter
             -> VisNetworkAdapter
        -> GraphProvider
-            -> POST /api/{database}/records
+            -> POST /api/{database}/graph
        -> HostAdapter
 ```
 
@@ -22,32 +22,40 @@ HeuristGraphPublicApi
 - `host` exposes the stable child API and embedded host bridge;
 - `ui` contains graph controls and future rules-builder UI.
 
-The server response remains renderer-neutral. `GraphDocument` accepts the
-current API shape (`records`, `edges`, and `paths`) and also accepts the planned
-`nodes` aliases. The vis adapter converts normalized records and edges into
-`vis-network` `DataSet` instances.
+The server response remains renderer-neutral. `GraphDocument` accepts the graph
+document shape (`records`, `edges`, `links`, `paths`, `limits`) and also accepts
+the `nodes` alias. Every edge carries `link`/`path` provenance and a stable `id`.
+The vis adapter converts normalized records and edges into `vis-network`
+`DataSet` instances.
 
 ## Loading and expansion
 
-The initial request uses a top-level query and explicit graph detail:
+The initial request uses a top-level query and an internal-edge selection:
 
 ```json
 {
   "query": "t:10",
-  "detail": "graph",
-  "rules": [],
-  "fields": ["rec_Title", "rec_RecTypeID"],
-  "limit": 100
+  "links": "all",
+  "limit": 1000,
+  "limits": { "maxNodes": 5000, "maxEdges": 10000, "maxDepth": 5 }
 }
 ```
 
-A node double-click starts a new request using an IDs query. The returned graph
-is merged by stable record and edge IDs. Superseded requests are aborted and
-late responses are rejected through the application generation guard.
+`links` is `"all"` for the initial graph and for a Saved Filter until a Dataset
+supplies an explicit compact link list (`["10:lt240:48", ...]`). Graph records
+always carry exactly `rec_ID`, `rec_Title`, and `rec_RecTypeID`; the graph
+endpoint does not accept a `fields` parameter. Client `limits` may only lower
+the server budget; the response reports `nodesReturned`, `edgesReturned`, and
+`truncated`.
 
-Expansion rules are supplied as configuration in the initial implementation.
-The visual rules builder is deliberately deferred until the request, limits,
-path provenance, and selection contracts are stable.
+A node double-click starts a new request using an IDs query with no link
+discovery. The returned graph is merged by stable record and edge IDs.
+Superseded requests are aborted and late responses are rejected through the
+application generation guard.
+
+Individual interactive expansion rules are follow-up work: the client will send
+one selected `rule` with the origin IDs. The visual rules builder is deferred
+until the request, limits, path provenance, and selection contracts are stable.
 
 ## Host integration
 

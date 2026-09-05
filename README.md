@@ -1,7 +1,7 @@
 # Heurist Graph
 
 Standalone and embeddable graph presentation module for Heurist. The module
-uses the renderer-neutral `detail=graph` records API and renders it with
+uses the renderer-neutral `/api/{database}/graph` endpoint and renders it with
 `vis-network`.
 
 ## Development
@@ -25,8 +25,8 @@ window.heuristModuleBootstrap = {
     runtimeMode: "standalone"
   },
   settings: {
-    rules: [],
-    fields: ["rec_Title", "rec_RecTypeID"]
+    links: "all",
+    limits: { maxNodes: 5000, maxEdges: 10000, maxDepth: 5 }
   },
   source: {
     query: "t:10",
@@ -41,17 +41,21 @@ event subscription methods.
 
 ## Graph contract
 
-Requests use `POST /api/{database}/records` with `detail: "graph"`, a top-level
-query, expansion rules, and requested headers. The server response remains
-renderer-neutral. The `VisNetworkAdapter` converts `graph.records` and
-`graph.edges` into the vis-network node and edge collections.
+Requests use `POST /api/{database}/graph` with a top-level query, an
+internal-edge selection (`links`), pagination, and an optional `limits` budget.
+`links` is `"all"` for the initial graph and a Saved Filter, or an array of
+compact link specs for a Dataset. The response is renderer-neutral: `graph`
+holds `records` (always `rec_ID`, `rec_Title`, `rec_RecTypeID`), provenance-
+tagged `edges`, the `links`/`paths` namespaces, and an effective `limits`
+report. The `VisNetworkAdapter` converts `graph.records` and `graph.edges` into
+the vis-network node and edge collections.
 
-Double-clicking a node requests another bounded graph expansion and merges the
-returned records and edges by stable IDs.
+Double-clicking a node requests an IDs-query graph with no link discovery and
+merges the returned records and edges by stable IDs.
 
-The initial module accepts expansion rules through the bootstrap/settings
-envelope. A visual rules editor will be added after the graph request and
-selection contracts have been adopted by the host.
+Individual interactive expansion rules and their visual builder are follow-up
+work, layered on the same endpoint once the request and selection contracts are
+adopted by the host.
 
 ## Host integration
 

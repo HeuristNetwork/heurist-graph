@@ -14,7 +14,7 @@ window.heuristModuleBootstrap = {
   },
   settings: {
     engine: "vis-network",
-    fields: ["rec_Title", "rec_RecTypeID"],
+    links: "all",
     rules: [],
     limits: {
       maxNodes: 5000,
@@ -44,15 +44,17 @@ window.heuristModuleBootstrap = {
 
 ## Graph request
 
-`GraphProvider` sends a POST request to `/records` with `detail: "graph"`.
-The request contains the top query, configured expansion rules, requested graph
-headers, and pagination values. The API response is expected to contain
-`ids`, `total`, and a renderer-neutral `graph` object with `records`, `edges`,
-and `paths`.
+`GraphProvider` sends a POST request to `/graph`. The request body contains the
+top query, the internal-edge selection (`links`), pagination values, and an
+optional `limits` budget. The API response is a renderer-neutral document with
+`query`, `total`, `offset`, `limit`, and a `graph` object holding `records`,
+`edges`, `links`, `paths`, and `limits`.
 
-The server currently owns expansion execution. Client-side dynamic expansion
-reuses the configured rules and sends an IDs query for the selected node. The
-returned records and edges are merged into the current graph.
+`links` defaults to `"all"` (discover every edge whose two endpoints are both in
+the result set) for the initial graph and for a Saved Filter. A Dataset with an
+explicit compact link list sends that array instead. Client-side dynamic
+expansion sends an IDs query with no link discovery and merges the returned
+records and edges into the current graph by stable ID.
 
 ## Engine options
 
@@ -65,8 +67,11 @@ adapter boundary.
 
 The child exposes `window.heuristGraph`:
 
-- `load({ query, rules, merge })` loads or merges a graph;
+- `load({ query, links, merge })` loads or merges a graph;
 - `expandNode(recordId)` requests a dynamic expansion;
+- `getLegend()` returns node counts by record type and edge counts by link group;
+- `setRecordTypeVisibility(recordTypeId, visible)` and
+  `setLinkVisibility(key, visible)` toggle legend groups without reloading;
 - `setSelection(recordIds)` updates selected records;
 - `clearSelection()` clears selection;
 - `getState()` returns query, selection, and graph record IDs;

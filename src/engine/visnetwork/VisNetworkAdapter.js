@@ -62,6 +62,9 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         to: edge.to,
         label: edge.fieldId ? String(edge.fieldId) : undefined,
         arrows: "to",
+        // Provenance carried through for legend grouping and edge styling.
+        link: edge.link || undefined,
+        path: edge.path || undefined,
       })),
     );
   }
