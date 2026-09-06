@@ -84,6 +84,10 @@ export class HeuristGraphPublicApi {
     return this.application.getLegend();
   }
 
+  setRelationshipVisibility(key, ids, visible) {
+    return this.application.setRelationshipVisibility(key, ids, visible);
+  }
+
   getVocabulary() {
     return this.application.getVocabulary();
   }

@@ -54,6 +54,7 @@ export class VocabularyProvider {
   constructor({ apiClient, maxTreeDepth = 12 } = {}) {
     this.apiClient = apiClient;
     this.maxTreeDepth = maxTreeDepth;
+    this.recordTypeNames = new Map();
     this.fieldNames = new Map(); // dty_ID -> name (null = looked up, not found)
     this.termNames = new Map(); // trm_ID -> label (null = looked up, not found)
     this.termChildren = new Map(); // trm_ID -> number[] direct children
@@ -64,6 +65,25 @@ export class VocabularyProvider {
    * @param {number[]} ids dty_ID values.
    * @returns {Promise<Map<number,string>>} id -> name for the ids that resolved.
    */
+  async getRecordTypeNames(ids, { signal } = {}) {
+    const missing = uniqueIds(ids).filter(id => !this.recordTypeNames.has(id));
+    if (missing.length) {
+      let payload;
+      try {
+        payload = await this.apiClient.get('/rty', { query: { details: 'name', rty_ID: missing.join(',') }, signal });
+      } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+        return pick(this.recordTypeNames, ids);
+      }
+      for (const row of rowsOf(payload)) {
+        const id = Number(row.rty_ID ?? row.id);
+        const name = row.rty_Plural || row.rty_Name || row.name;
+        if (id > 0 && name) this.recordTypeNames.set(id, String(name));
+      }
+    }
+    return pick(this.recordTypeNames, ids);
+  }
+
   async getFieldNames(ids, { signal } = {}) {
     const missing = uniqueIds(ids).filter((id) => !this.fieldNames.has(id));
     if (missing.length) {
@@ -107,13 +127,13 @@ export class VocabularyProvider {
     if (!roots.length) return { names: new Map(), trees: {} };
 
     const seen = new Set();
-    const walk = async (id, depth) => {
-      if (seen.has(id)) return { id, children: [] };
+    const walk = async (id, depth, ancestors = new Set()) => {
+      if (ancestors.has(id)) return { id, children: [] };
       seen.add(id);
       if (depth >= this.maxTreeDepth) return { id, children: [] };
       const childIds = await this.#childTermIds(id, signal);
       const children = await Promise.all(
-        childIds.map((childId) => walk(childId, depth + 1)),
+        childIds.map((childId) => walk(childId, depth + 1, new Set([...ancestors, id]))),
       );
       return { id, children };
     };

@@ -62,6 +62,8 @@ export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
     // heurist-graph (vis-network) appearance defaults.
     gravity: "normal",
     scaling: true,
+    showNodeLabels: true,
+    showEdgeLabels: false,
     labelLength: 40,
     popupDelay: 1,
     popupTemplate: null,

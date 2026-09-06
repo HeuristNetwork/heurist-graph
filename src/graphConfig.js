@@ -65,6 +65,8 @@ export function getHeuristGraphConfig() {
       ...settings.engineOptions,
       gravity: persistedSettings.config.defaults.gravity,
       scaling: persistedSettings.config.defaults.scaling,
+      showNodeLabels: persistedSettings.config.defaults.showNodeLabels,
+      showEdgeLabels: persistedSettings.config.defaults.showEdgeLabels,
       labelMaxLength: persistedSettings.config.defaults.labelLength,
       popupDelay: persistedSettings.config.defaults.popupDelay,
       popupTemplate: persistedSettings.config.defaults.popupTemplate,

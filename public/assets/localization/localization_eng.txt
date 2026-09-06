@@ -84,3 +84,38 @@
 #Show header#Show header
 #Header#Header
 #source_header_hint#Show header
+
+#Page size#Page size
+#Edit Dataset#Edit Dataset
+#Add Dataset#Add Dataset
+#Nodes (Record types)#Nodes (Record types)
+#Edges (Links and Relations)#Edges (Links and Relations)
+#Loaded#Loaded
+#First#First
+#of#of
+#Define initial links#Define initial links
+#edge limit reached#edge limit reached
+#Graph is truncated; only links between loaded records are shown.#Graph is truncated; only links between loaded records are shown.
+#No links#No links
+#Expansion Rules#Expansion Rules
+#Rule#Rule
+#No expansion rules#No expansion rules
+#Add new rule#Add new rule
+#Changes apply to this viewing session. Use Edit Dataset to edit the saved definition.#Changes apply to this viewing session. Use Edit Dataset to edit the saved definition.
+#Links (one definition per line, or all)#Links (one definition per line, or all)
+#Rule name#Rule name
+#Description#Description
+#Expansion query (JSON)#Expansion query (JSON)
+#The active graph changed. Reopen this editor.#The active graph changed. Reopen this editor.
+#Editing is disabled.#Editing is disabled.
+#Enter link definitions or all.#Enter link definitions or all.
+#Use link definitions such as 10:lt240:48 or 10:rt3260:10.#Use link definitions such as 10:lt240:48 or 10:rt3260:10.
+#Enter a rule name.#Enter a rule name.
+#The expansion query must be a JSON object.#The expansion query must be a JSON object.
+#Expand or collapse#Expand or collapse
+
+#Show node labels#Show node labels
+
+#Show edge labels#Show edge labels
+
+#Off#Off

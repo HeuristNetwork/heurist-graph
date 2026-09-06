@@ -44,6 +44,10 @@ export class GraphApplication extends EventTarget {
     // Legend state: record types and link groups the viewer has hidden.
     this.hiddenRecordTypes = new Set();
     this.hiddenLinks = new Set();
+    this.hiddenRelationships = new Set();
+    this.dataset = null;
+    this.response = null;
+    this.recordTypeNames = new Map();
     // Active source tracking, mirroring heurist-data's DataApplication: a
     // persisted Dataset "wins" against inbound Filtered Result queries until
     // the viewer explicitly reactivates Filtered Result.
@@ -109,6 +113,8 @@ export class GraphApplication extends EventTarget {
         ...this.config.engineOptions,
         gravity: normalized.config.defaults.gravity,
         scaling: normalized.config.defaults.scaling,
+        showNodeLabels: normalized.config.defaults.showNodeLabels,
+        showEdgeLabels: normalized.config.defaults.showEdgeLabels,
         labelMaxLength: normalized.config.defaults.labelLength,
         popupDelay: normalized.config.defaults.popupDelay,
         popupTemplate: normalized.config.defaults.popupTemplate,
@@ -160,6 +166,8 @@ export class GraphApplication extends EventTarget {
       this.config.datasetTitle = null;
       this.config.query = null;
       this.graph = new GraphDocument();
+      this.dataset = null;
+      this.response = null;
       await this.engine.setGraph(this.graph);
       await this.engine.setSelection(this.selection);
       this.#setEmptyState(true);
@@ -176,7 +184,10 @@ export class GraphApplication extends EventTarget {
         this.currentResultsQuery = normalizedQuery;
       }
       if (this.source?.type === "dataset" && !internal) return this.getState();
-      if (!internal) this.source = { type: "query", query: normalizedQuery };
+      if (!internal) {
+        this.source = { type: "query", query: normalizedQuery };
+        this.dataset = null;
+      }
     }
 
     const generation = ++this.generation;
@@ -188,7 +199,7 @@ export class GraphApplication extends EventTarget {
     // a Dataset supplies an explicit link set.
     const linkSelection = merge
       ? undefined
-      : links ?? this.config.links ?? "all";
+      : links ?? this.source?.links ?? this.dataset?.links ?? this.config.links ?? "all";
     const result = await this.provider.load({
       query: normalizedQuery,
       links: linkSelection,
@@ -197,6 +208,15 @@ export class GraphApplication extends EventTarget {
     });
     if (generation !== this.generation)
       throw abortError("Superseded graph request");
+    this.response = result;
+    if (!merge) {
+      this.edgeLabels = { fields: new Map(), relationTypes: new Map() };
+      this.relationTypeTrees = {};
+      this.recordTypeNames = new Map();
+      this.hiddenLinks.clear();
+      this.hiddenRelationships.clear();
+      this.hiddenRecordTypes.clear();
+    }
     this.graph =
       merge && this.graph ? this.graph.merge(result.graph) : result.graph;
     this.config.query = normalizedQuery;
@@ -233,10 +253,13 @@ export class GraphApplication extends EventTarget {
       if (edge.fieldId) fieldIds.add(edge.fieldId);
       if (edge.relationshipId) relationIds.add(edge.relationshipId);
     }
-    if (!fieldIds.size && !relationIds.size) return;
+    for (const spec of Object.values(this.graph.links)) {
+      const match = /:rt(\d+):/.exec(String(spec));
+      if (match) relationIds.add(Number(match[1]));
+    }
     const signal = this.abortController?.signal;
     try {
-      const [fields, relations] = await Promise.all([
+      const [fields, relations, recordTypes] = await Promise.all([
         fieldIds.size
           ? this.vocabularyProvider.getFieldNames([...fieldIds], { signal })
           : new Map(),
@@ -245,10 +268,12 @@ export class GraphApplication extends EventTarget {
               signal,
             })
           : { names: new Map(), trees: {} },
+        this.vocabularyProvider.getRecordTypeNames?.(this.graph.records.map(r => r.recordTypeId), { signal }) || new Map(),
       ]);
       if (generation !== undefined && generation !== this.generation) return;
       this.edgeLabels = { fields, relationTypes: relations.names };
       this.relationTypeTrees = relations.trees;
+      this.recordTypeNames = recordTypes;
       await this.engine.setEdgeLabels?.(this.edgeLabels);
       this.dispatch("heurist-graph-vocabulary-changed", {
         fields: this.edgeLabels.fields,
@@ -265,14 +290,17 @@ export class GraphApplication extends EventTarget {
     const dataset = await this.datasetProvider?.load?.(id);
     const query = dataset?.source?.query ?? dataset?.query;
     if (query == null || query === "") throw new Error("Dataset query is empty");
+    this.dataset = dataset;
     this.config.datasetId = Number(id);
     this.config.datasetTitle = dataset.title || dataset.rec_Title || null;
     this.source = { type: "dataset", datasetId: Number(id) };
-    return this.load({ query, internal: true, remember: false });
+    return this.load({ query, links: dataset.links ?? "all", internal: true, remember: false });
   }
 
   /** Restore the most recently remembered Filtered Result query, locally. */
   activateCurrentResults() {
+    this.dataset = null;
+    this.source = null;
     this.config.datasetId = null;
     this.config.datasetTitle = null;
     return this.load({
@@ -290,6 +318,7 @@ export class GraphApplication extends EventTarget {
    * search internally by loading the filter's query directly.
    */
   async activateFilter(filter) {
+    this.dataset = null;
     this.config.datasetId = null;
     this.config.datasetTitle = null;
     this.source = null;
@@ -348,6 +377,8 @@ export class GraphApplication extends EventTarget {
       ...this.config.engineOptions,
       gravity: defaults.gravity,
       scaling: defaults.scaling,
+      showNodeLabels: defaults.showNodeLabels,
+      showEdgeLabels: defaults.showEdgeLabels,
       labelMaxLength: defaults.labelLength,
       popupDelay: defaults.popupDelay,
       popupTemplate: defaults.popupTemplate,
@@ -401,6 +432,10 @@ export class GraphApplication extends EventTarget {
 
   /** Best available human label for a legend link group, or null. */
   #linkLabel(entry) {
+    const root = /:rt(\d+):/.exec(String(entry.spec || ''));
+    if (root && this.edgeLabels.relationTypes.has(Number(root[1]))) {
+      return this.edgeLabels.relationTypes.get(Number(root[1]));
+    }
     if (entry.relationshipId) {
       const name = this.edgeLabels.relationTypes.get(entry.relationshipId);
       if (name) return name;
@@ -421,6 +456,7 @@ export class GraphApplication extends EventTarget {
   getLegend() {
     const recordTypes = new Map();
     const links = new Map();
+    const typesById = new Map((this.graph?.records || []).map(r => [r.id, r.recordTypeId]));
     for (const record of this.graph?.records || []) {
       const key = record.recordTypeId || 0;
       recordTypes.set(key, (recordTypes.get(key) || 0) + 1);
@@ -430,6 +466,8 @@ export class GraphApplication extends EventTarget {
       const entry = links.get(key) || {
         key,
         count: 0,
+        endpoints: new Set(),
+        relationships: new Map(),
         link: edge.link || null,
         path: edge.path || null,
         fieldId: edge.fieldId || null,
@@ -437,17 +475,27 @@ export class GraphApplication extends EventTarget {
         spec: (edge.link && this.graph?.links?.[edge.link]) || null,
       };
       entry.count += 1;
+      const from = typesById.get(edge.from), to = typesById.get(edge.to);
+      entry.endpoints.add((this.recordTypeNames.get(from) || from || '?') + (edge.relationshipId ? ' ↔ ' : ' → ') + (this.recordTypeNames.get(to) || to || '?'));
+      if (edge.relationshipId) entry.relationships.set(edge.relationshipId, (entry.relationships.get(edge.relationshipId) || 0) + 1);
       links.set(key, entry);
     }
     return {
+      total: this.response?.total ?? null,
+      offset: this.response?.offset || 0,
+      limits: this.graph?.limits || {},
+      rules: this.dataset?.rules ?? this.config.rules ?? [],
       recordTypes: [...recordTypes.entries()].map(([recordTypeId, count]) => ({
         recordTypeId,
+        label: this.recordTypeNames.get(recordTypeId) || `Record type ${recordTypeId}`,
         count,
         visible: !this.hiddenRecordTypes.has(recordTypeId),
       })),
       links: [...links.values()].map((entry) => ({
         ...entry,
         label: this.#linkLabel(entry),
+        endpoints: [...entry.endpoints],
+        relationships: [...entry.relationships].map(([id, count]) => ({ id, count, visible: !this.hiddenRelationships.has(entry.key + ':' + id) })),
         visible: !this.hiddenLinks.has(entry.key),
       })),
       relationTypeTrees: this.relationTypeTrees,
@@ -467,7 +515,22 @@ export class GraphApplication extends EventTarget {
   async setLinkVisibility(key, visible) {
     const group = String(key);
     if (visible === false) this.hiddenLinks.add(group);
-    else this.hiddenLinks.delete(group);
+    else {
+      this.hiddenLinks.delete(group);
+      for (const token of this.hiddenRelationships) {
+        if (token.startsWith(group + ':')) this.hiddenRelationships.delete(token);
+      }
+    }
+    await this.#renderVisible();
+    return this.getLegend();
+  }
+
+  async setRelationshipVisibility(key, ids, visible) {
+    for (const id of ids) {
+      const token = String(key) + ':' + Number(id);
+      if (visible === false) this.hiddenRelationships.add(token);
+      else this.hiddenRelationships.delete(token);
+    }
     await this.#renderVisible();
     return this.getLegend();
   }
@@ -475,11 +538,12 @@ export class GraphApplication extends EventTarget {
   async #renderVisible() {
     await this.engine.setGraph(this.#filterGraph(this.graph || new GraphDocument()));
     await this.engine.setSelection(this.selection);
+    this.dispatch("heurist-graph-visibility-changed", {});
   }
 
   /** Drop hidden record types, hidden link groups, and now-dangling edges. */
   #filterGraph(graph) {
-    if (!this.hiddenRecordTypes.size && !this.hiddenLinks.size) return graph;
+    if (!this.hiddenRecordTypes.size && !this.hiddenLinks.size && !this.hiddenRelationships.size) return graph;
     const records = graph.records.filter(
       (record) => !this.hiddenRecordTypes.has(record.recordTypeId || 0),
     );
@@ -487,6 +551,7 @@ export class GraphApplication extends EventTarget {
     const edges = graph.edges.filter(
       (edge) =>
         !this.hiddenLinks.has(edgeGroupKey(edge)) &&
+        !this.hiddenRelationships.has(edgeGroupKey(edge) + ":" + edge.relationshipId) &&
         visibleIds.has(edge.from) &&
         visibleIds.has(edge.to),
     );

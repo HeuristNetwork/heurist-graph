@@ -179,12 +179,15 @@ export class GraphConfigurationDialog {
     this.select(body, "config.defaults.maxNodes", "Nodes limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
     this.select(body, "config.defaults.maxEdges", "Edges limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
     this.select(body, "config.defaults.gravity", "Gravity", [
+      ["off", "Off"],
       ["loose", "Loose"],
       ["normal", "Normal"],
       ["tight", "Tight"],
     ]);
     body.append(
       this.check("config.defaults.scaling", "Scale node size by connections"),
+      this.check("config.defaults.showNodeLabels", "Show node labels"),
+      this.check("config.defaults.showEdgeLabels", "Show edge labels"),
     );
     this.number(body, "config.defaults.labelLength", "Label length", 20, 100);
     this.number(body, "config.defaults.popupDelay", "Popup delay (seconds)", 1, 5);
@@ -198,6 +201,7 @@ export class GraphConfigurationDialog {
 
   buildGraphInteraction(body) {
     body.append(
+      this.check("options.interaction.editEnabled", "Enable edit"),
       this.check("options.interaction.selectionEnabled", "Enable selection"),
       this.check("options.interaction.popupEnabled", "Enable popups"),
     );

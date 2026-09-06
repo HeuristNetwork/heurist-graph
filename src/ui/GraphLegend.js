@@ -1,0 +1,129 @@
+/** Active dataset legend. Counts describe loaded data, independent of visibility. */
+import { $HR } from '@heurist/client-core/ui';
+
+export class GraphLegend {
+  constructor({ api, container, onEdit, onLinks, onRule, onError }) {
+    Object.assign(this, { api, container, onEdit, onLinks, onRule, onError });
+    this.open = new Set();
+  }
+
+  render({ editEnabled = false } = {}) {
+    const model = this.api.getLegend?.() || { recordTypes: [], links: [], rules: [] };
+    const focusKey = this.container.contains(document.activeElement) ? document.activeElement?.dataset?.legendKey : null;
+    this.container.replaceChildren();
+    this.container.append(element('h4', $HR('Nodes (Record types)')));
+    const nodesSection = element('section', null, 'heurist-graph-legend-items');
+    this.container.append(nodesSection);
+    const count = model.recordTypes.reduce((sum, row) => sum + row.count, 0);
+    if (model.total != null && model.total > count) {
+      nodesSection.append(element('p', model.offset ? `${$HR('Loaded')} ${count} ${$HR('of')} ${model.total}` : `${$HR('First')} ${count} ${$HR('of')} ${model.total}`, 'heurist-graph-legend-note'));
+    }
+    for (const row of model.recordTypes) nodesSection.append(this.checkbox(row.label || `Record type ${row.recordTypeId}`, row.count, row.visible, false, `node:${row.recordTypeId}`, value => this.api.setRecordTypeVisibility(row.recordTypeId, value)));
+    if (!model.recordTypes.length) nodesSection.append(element('p', $HR('No records')));
+    const edgesHeading = element('h4', $HR('Edges (Links and Relations)'));
+    if (editEnabled) edgesHeading.append(this.action('Define initial links', 'fa-link', this.onLinks));
+    this.container.append(edgesHeading);
+    const edgesSection = element('section', null, 'heurist-graph-legend-items');
+    this.container.append(edgesSection);
+    const edgeCount = model.links.reduce((sum, row) => sum + row.count, 0);
+    if (model.limits?.edgesTruncated) edgesSection.append(element('p', `${$HR('First')} ${edgeCount}${model.limits.edgesTotal != null ? ` ${$HR('of')} ${model.limits.edgesTotal}` : ` — ${$HR('edge limit reached')}`}`, 'heurist-graph-legend-note'));
+    else if (model.limits?.truncated) edgesSection.append(element('p', $HR('Graph is truncated; only links between loaded records are shown.'), 'heurist-graph-legend-note'));
+    for (const group of model.links) {
+      const label = `${group.label || group.spec || group.key}${group.endpoints?.length ? ` (${group.endpoints.join(', ')})` : ''}`;
+      const hiddenCount = (group.relationships || []).filter(entry => !entry.visible).reduce((sum, entry) => sum + entry.count, 0);
+      const row = this.checkbox(label, group.count, group.visible && hiddenCount < group.count, group.visible && hiddenCount > 0 && hiddenCount < group.count, group.key, value => this.api.setLinkVisibility(group.key, value));
+      let trees = relationForest(group, model.relationTypeTrees);
+      const root = /:rt(\d+):/.exec(String(group.spec || ''));
+      if (trees.length === 1 && Number(root?.[1]) === Number(trees[0].id) && trees[0].children.length) trees = trees[0].children;
+      edgesSection.append(trees.length ? this.branch(group.key, row, trees.map(tree => this.term(group, tree))) : row);
+    }
+    if (!model.links.length) edgesSection.append(element('p', $HR('No links')));
+    const rulesHeading = element('h4', $HR('Expansion Rules'));
+    if (editEnabled) rulesHeading.append(this.action('Add new rule', 'fa-circle-plus', this.onRule));
+    this.container.append(rulesHeading);
+    for (const [index, rule] of (model.rules || []).entries()) {
+      const row = element('div', rule.name || rule.title || `${$HR('Rule')} ${index + 1}`, 'heurist-graph-legend-rule');
+      row.title = rule.description || '';
+      this.container.append(row);
+    }
+    if (!model.rules?.length) this.container.append(element('p', $HR('No expansion rules')));
+    if (focusKey) [...this.container.querySelectorAll('input')].find(input => input.dataset.legendKey === focusKey)?.focus();
+  }
+
+  term(group, node) {
+    const ids = descendants(node);
+    const entries = (group.relationships || []).filter(row => ids.includes(row.id));
+    const visible = entries.filter(row => row.visible).length;
+    const row = this.checkbox(node.label, entries.reduce((sum, row) => sum + row.count, 0), visible > 0, visible > 0 && visible < entries.length, `${group.key}:term:${node.id}`, value => this.api.setRelationshipVisibility(group.key, ids, value));
+    row.querySelector('input').disabled = !group.visible || !entries.length;
+    return node.children?.length ? this.branch(`${group.key}:tree:${node.id}`, row, node.children.map(child => this.term(group, child))) : row;
+  }
+
+  branch(key, row, children) {
+    const branch = element('div', null, 'heurist-graph-legend-branch');
+    const header = element('div', null, 'heurist-graph-legend-branch-header');
+    const toggle = element('button', this.open.has(key) ? '▾' : '▸', 'heurist-module-icon-button');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-label', `${$HR('Expand or collapse')} ${row.textContent}`);
+    toggle.setAttribute('aria-expanded', String(this.open.has(key)));
+    const content = element('div', null, 'heurist-graph-legend-children');
+    content.hidden = !this.open.has(key);
+    content.append(...children);
+    toggle.addEventListener('click', () => {
+      content.hidden = !content.hidden;
+      content.hidden ? this.open.delete(key) : this.open.add(key);
+      toggle.textContent = content.hidden ? '▸' : '▾';
+      toggle.setAttribute('aria-expanded', String(!content.hidden));
+    });
+    header.append(toggle, row); branch.append(header, content);
+    return branch;
+  }
+
+  checkbox(label, count, checked, mixed, key, handler) {
+    const row = element('label', null, 'heurist-graph-legend-row');
+    const input = element('input');
+    input.type = 'checkbox'; input.checked = checked; input.indeterminate = mixed;
+    input.dataset.legendKey = key;
+    input.addEventListener('click', event => event.stopPropagation());
+    input.addEventListener('change', () => this.run(() => handler(input.checked)));
+    row.append(input, element('span', `${label} (${count})`));
+    return row;
+  }
+
+  action(title, icon, handler) {
+    const button = element('button', null, 'heurist-module-icon-button');
+    button.type = 'button'; button.title = $HR(title); button.setAttribute('aria-label', $HR(title));
+    const glyph = element('span', null, `fa-solid ${icon}`);
+    glyph.setAttribute('aria-hidden', 'true'); button.append(glyph);
+    button.addEventListener('click', () => this.run(handler));
+    return button;
+  }
+
+  run(handler) { Promise.resolve().then(handler).catch(error => this.onError?.(error, 'legend')); }
+}
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text != null) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function descendants(node) { return [Number(node.id), ...(node.children || []).flatMap(descendants)]; }
+
+/** Retain a single copy of each observed branch, including its vocabulary ancestors. */
+export function relationForest(group, trees = {}) {
+  const ids = new Set((group.relationships || []).map(row => row.id));
+  const prune = (node, seen = new Set()) => {
+    if (seen.has(Number(node.id))) return null;
+    const next = new Set([...seen, Number(node.id)]);
+    const children = (node.children || []).map(child => prune(child, next)).filter(Boolean);
+    return ids.has(Number(node.id)) || children.length ? { ...node, children } : null;
+  };
+  const candidates = Object.values(trees).map(node => prune(node)).filter(Boolean);
+  const childIds = new Set(candidates.flatMap(node => (node.children || []).flatMap(descendants)));
+  const roots = candidates.filter(node => !childIds.has(Number(node.id)));
+  const covered = new Set(roots.flatMap(descendants));
+  for (const id of ids) if (!covered.has(id)) roots.push({ id, label: `Relation ${id}`, children: [] });
+  return roots;
+}

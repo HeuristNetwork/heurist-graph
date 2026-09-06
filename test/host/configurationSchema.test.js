@@ -240,3 +240,14 @@ test("Options visibility is fixed for preferences and publication but configurab
   assert.equal(preferences.options.ui.showOptions, true);
   assert.equal(publication.options.ui.showOptions, false);
 });
+
+test("label visibility and disabled gravity survive serialization", () => {
+  const defaults = normalizeGraphConfigurationSettings({}).config.defaults;
+  assert.equal(defaults.showNodeLabels, true);
+  assert.equal(defaults.showEdgeLabels, false);
+  const settings = { config: { defaults: { gravity: "off", showNodeLabels: false, showEdgeLabels: true } } };
+  const result = normalizeGraphConfigurationSettings(serializeGraphConfigurationSettings(settings));
+  assert.equal(result.config.defaults.gravity, "off");
+  assert.equal(result.config.defaults.showNodeLabels, false);
+  assert.equal(result.config.defaults.showEdgeLabels, true);
+});

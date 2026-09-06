@@ -93,7 +93,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         const title = stripHtmlTags(record.title) || `Record ${record.id}`;
         const node = {
           id: record.id,
-          label: truncateLabel(title, maxLength),
+          label: this.options?.showNodeLabels === false ? "" : truncateLabel(title, maxLength),
           group: record.recordTypeId || "unknown",
           // Full (tag-stripped) text: vis-network's built-in hover tooltip.
           title,
@@ -142,6 +142,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
 
   /** Name for an edge: relation type first, then detail type, then id. */
   #edgeLabel(edge) {
+    if (this.options?.showEdgeLabels !== true) return "";
     const relationshipId = edge.relationshipId || null;
     if (relationshipId && this.edgeLabels.relationTypes.get(relationshipId)) {
       return this.edgeLabels.relationTypes.get(relationshipId);
@@ -321,9 +322,10 @@ function networkOptions(options) {
   return {
     autoResize: true,
     physics:
-      physicsOverride === false
+      options.gravity === "off" || physicsOverride === false
         ? false
         : {
+            enabled: true,
             solver: "barnesHut",
             barnesHut: {
               // "Gravity": a stronger (more negative) gravitationalConstant

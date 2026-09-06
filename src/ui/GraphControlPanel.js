@@ -2,6 +2,8 @@
  * @file GraphControlPanel.js
  * @brief Graph controls using the heurist-data panel interaction pattern.
  */
+import { GraphLegend } from "./GraphLegend.js";
+import { GraphLegendEditor } from "./GraphLegendEditor.js";
 import { DatasetSelector } from "./DatasetSelector.js";
 import { FilterSelector } from "./FilterSelector.js";
 import { $HR, applyI18n, InlineHelp } from "@heurist/client-core/ui";
@@ -45,10 +47,10 @@ export class GraphControlPanel {
     const body = document.createElement("div");
     body.className = "heurist-module-panel-body";
     this.body = body;
-    const datasets = section(body, "Datasets");
+    const datasets = section(body);
     this.datasetsSection = datasets.section;
     this.datasetsSelector = new DatasetSelector({ api: this.api, container: datasets.content, classPrefix: "heurist-graph", onError: (error) => this.reportError(error) });
-    const filters = section(body, "Filters");
+    const filters = section(body, "Filters", true);
     this.filtersSection = filters.section;
     this.filtersSelector = new FilterSelector({
       api: this.api,
@@ -57,6 +59,12 @@ export class GraphControlPanel {
       loadFilter: (id) => this.filterListProvider?.load(id),
       onError: (error) => this.reportError(error),
     });
+    this.legendSection = document.createElement('section');
+    this.legendSection.className = 'heurist-graph-legend';
+
+    this.legend = new GraphLegend({ api: this.api, container: this.legendSection,
+      onEdit: () => this.editDataset(), onLinks: () => this.editLegend('links'),
+      onRule: () => this.editLegend('rule'), onError: (error, operation) => this.reportError(error, operation) });
     this.element.append(header, body);
     (this.container.parentElement || document.body).append(this.element);
     this.sourceHeader = document.createElement("div");
@@ -64,7 +72,9 @@ export class GraphControlPanel {
     this.container.prepend(this.sourceHeader);
     if (this.options.initiallyExpanded === false)
       this.element.classList.add("fully-collapsed");
-    this.bind("heurist-graph-loaded", () => this.render());
+    this.bind("heurist-graph-loaded", () => { void this.render().catch(error => this.reportError(error)); });
+    this.bind("heurist-graph-vocabulary-changed", () => this.renderLegend());
+    this.bind("heurist-graph-visibility-changed", () => this.renderLegend());
     this.bind("heurist-graph-configuration-changed", (event) => {
       void this.applyOptions(event.detail).catch((error) => this.reportError(error, "apply-options"));
     });
@@ -99,8 +109,47 @@ export class GraphControlPanel {
         currentResultsTitle: currentTitle,
       },
     );
+    this.renderLegend();
     this.filtersSelector.render(normalizeItems(filters, "Filter"));
     applyI18n(this.element);
+  }
+
+  renderLegend() {
+    const app = this.api.application;
+    const state = this.api.getState();
+    const interaction = app?.config.persistedSettings?.options?.interaction || {};
+    const editEnabled = interaction.editEnabled !== false && interaction.readonly !== true && Boolean(app?.host?.supportsEditing?.());
+    const activeRow = this.datasetsSection.querySelector('.heurist-graph-selector-row.active');
+    this.datasetsSection.querySelectorAll('.heurist-graph-dataset-action').forEach(button => button.remove());
+    if (activeRow) {
+      activeRow.append(this.legendSection);
+      if (editEnabled && (state.datasetId || typeof app.host.bridge?.addRecord === 'function')) {
+        const action = this.legend.action(state.datasetId ? 'Edit Dataset' : 'Add Dataset', state.datasetId ? 'fa-pen' : 'fa-circle-plus', () => this.editDataset());
+        action.classList.add('heurist-graph-dataset-action');
+        activeRow.insertBefore(action, this.legendSection);
+      }
+    } else this.legendSection.remove();
+    this.legend.render({ editEnabled });
+  }
+
+  async editDataset() {
+    const app = this.api.application;
+    const id = this.api.getState().datasetId;
+    if (id) {
+      await app.host.editRecord(id);
+      if (this.api.getState().datasetId === id) await this.api.setDataset(id);
+    } else {
+      const info = await this.datasetListProvider.list({ ids: [] });
+      const created = await app.host.addRecord(info.recordTypeId);
+      const newId = Number(created?.recordId ?? created?.rec_ID ?? created?.id);
+      if (newId > 0) await this.api.setDataset(newId);
+    }
+  }
+
+  editLegend(mode) {
+    this.legendEditor?.destroy();
+    this.legendEditor = new GraphLegendEditor({ api: this.api, onError: error => this.reportError(error, 'legend-editor') });
+    this.legendEditor.open(mode);
   }
 
   /** React to settings edited/saved in the Configuration dialog while the panel is mounted. */
@@ -209,19 +258,31 @@ export class GraphControlPanel {
 
   destroy() {
     this.listeners.forEach(([name, handler]) => this.api.removeEventListener(name, handler));
+    this.legendEditor?.destroy();
     this.sourceHeader?.remove();
     this.helpOverlay?.close();
     this.element?.remove();
   }
 }
 
-function section(parent, title) {
+function section(parent, title, collapsible = false) {
   const section = document.createElement("section");
-  const heading = document.createElement("h3");
+  const heading = document.createElement(collapsible ? "button" : "h3");
   heading.className = "h-i18n";
   heading.textContent = title;
   const content = document.createElement("div");
-  section.append(heading, content);
+  if (title) section.append(heading);
+  section.append(content);
+  if (collapsible) {
+    heading.type = 'button';
+    heading.classList.add('heurist-graph-section-toggle');
+    content.hidden = true;
+    heading.setAttribute('aria-expanded', 'false');
+    heading.addEventListener('click', () => {
+      content.hidden = !content.hidden;
+      heading.setAttribute('aria-expanded', String(!content.hidden));
+    });
+  }
   parent.append(section);
   return { section, content };
 }

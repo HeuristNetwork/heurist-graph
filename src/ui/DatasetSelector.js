@@ -60,7 +60,9 @@ export class DatasetSelector {
 
 function row(item, active, activate, classPrefix = "heurist-data") {
   const label = document.createElement("label");
-  label.className = `${classPrefix}-selector-row${active ? " active" : ""}`;
+  const wrapper = document.createElement("div");
+  wrapper.className = `${classPrefix}-selector-row${active ? " active" : ""}`;
+  label.className = "heurist-data-dataset";
   const input = document.createElement("input");
   input.type = "radio";
   input.name = "heurist-data-dataset";
@@ -72,5 +74,6 @@ function row(item, active, activate, classPrefix = "heurist-data") {
   if (item.i18n) title.classList.add("h-i18n");
   title.textContent = item.title;
   label.append(input, title);
-  return label;
+  wrapper.append(label);
+  return wrapper;
 }

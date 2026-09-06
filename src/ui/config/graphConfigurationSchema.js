@@ -168,10 +168,12 @@ function normalizeConfig(source, defaults) {
       maxEdges: enumValue(Number(configured.maxEdges), [1000, 5000, 10000, 25000], defaults.defaults.maxEdges),
       gravity: enumValue(
         configured.gravity,
-        ["loose", "normal", "tight"],
+        ["off", "loose", "normal", "tight"],
         defaults.defaults.gravity,
       ),
       scaling: boolean(configured.scaling, defaults.defaults.scaling),
+      showNodeLabels: boolean(configured.showNodeLabels, defaults.defaults.showNodeLabels),
+      showEdgeLabels: boolean(configured.showEdgeLabels, defaults.defaults.showEdgeLabels),
       labelLength: boundedNumber(
         configured.labelLength,
         defaults.defaults.labelLength,
