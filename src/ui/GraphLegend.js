@@ -37,15 +37,17 @@ export class GraphLegend {
     const edgeCount = model.links.reduce((sum, row) => sum + row.count, 0);
     if (model.limits?.edgesTruncated) edgesSection.append(element('p', `${$HR('First')} ${edgeCount}${model.limits.edgesTotal != null ? ` ${$HR('of')} ${model.limits.edgesTotal}` : ` — ${$HR('edge limit reached')}`}`, 'heurist-graph-legend-note'));
     else if (model.limits?.truncated) edgesSection.append(element('p', $HR('Graph is truncated; only links between loaded records are shown.'), 'heurist-graph-legend-note'));
-    for (const group of model.links) {
+    const relationshipGroups = model.links.filter(group => group.relationships?.length);
+    for (const group of model.links.filter(group => !group.relationships?.length)) {
       const label = `${group.label || group.spec || group.key}${group.endpoints?.length ? ` (${group.endpoints.join(', ')})` : ''}`;
       const hiddenCount = (group.relationships || []).filter(entry => !entry.visible).reduce((sum, entry) => sum + entry.count, 0);
       const row = this.checkbox(label, group.count, group.visible && hiddenCount < group.count, group.visible && hiddenCount > 0 && hiddenCount < group.count, group.key, value => this.api.setLinkVisibility(group.key, value));
-      let trees = relationForest(group, model.relationTypeTrees);
-      const root = /:rt(\d+):/.exec(String(group.spec || ''));
-      if (trees.length === 1 && Number(root?.[1]) === Number(trees[0].id) && trees[0].children.length) trees = trees[0].children;
-      edgesSection.append(trees.length ? this.branch(group.key, row, trees.map(tree => this.term(group, tree))) : row);
+      edgesSection.append(row);
     }
+    // Relationship groups describe edge provenance, not hierarchy roots.
+    // Render their observed types together once under each vocabulary.
+    const forest = relationForest({ relationships: relationshipGroups.flatMap(group => group.relationships) }, model.relationTypeTrees);
+    for (const tree of forest) edgesSection.append(this.term(relationshipGroups, tree));
     if (!model.links.length) edgesSection.append(element('p', $HR('No links')));
     const rulesHeading = element('h4', $HR('Expansion Rules'));
     if (editEnabled) rulesHeading.append(this.action('Add new rule', 'fa-circle-plus', this.onRule));
@@ -59,13 +61,29 @@ export class GraphLegend {
     if (focusKey) [...this.container.querySelectorAll('input')].find(input => input.dataset.legendKey === focusKey)?.focus();
   }
 
-  term(group, node) {
+  term(groups, node) {
     const ids = descendants(node);
-    const entries = (group.relationships || []).filter(row => ids.includes(row.id));
-    const visible = entries.filter(row => row.visible).length;
-    const row = this.checkbox(node.label, entries.reduce((sum, row) => sum + row.count, 0), visible > 0, visible > 0 && visible < entries.length, `${group.key}:term:${node.id}`, value => this.api.setRelationshipVisibility(group.key, ids, value));
-    row.querySelector('input').disabled = !group.visible || !entries.length;
-    return node.children?.length ? this.branch(`${group.key}:tree:${node.id}`, row, node.children.map(child => this.term(group, child))) : row;
+    const entries = groups.flatMap(group => (group.relationships || [])
+      .filter(entry => ids.includes(entry.id))
+      .map(entry => ({ ...entry, group, visible: group.visible && entry.visible })));
+    const visible = entries.filter(entry => entry.visible).length;
+    const row = this.checkbox(node.label, entries.reduce((sum, entry) => sum + entry.count, 0),
+      visible > 0, visible > 0 && visible < entries.length, `relation:term:${node.id}`, async value => {
+        for (const group of groups) {
+          const termIds = group.relationships.filter(entry => ids.includes(entry.id)).map(entry => entry.id);
+          if (!termIds.length) continue;
+          // Preserve each link's filter scope while operating on the shared tree.
+          if (value && !group.visible) {
+            const otherIds = group.relationships.filter(entry => !termIds.includes(entry.id)).map(entry => entry.id);
+            if (otherIds.length) await this.api.setRelationshipVisibility(group.key, otherIds, false);
+            await this.api.setLinkVisibility(group.key, true);
+          }
+          await this.api.setRelationshipVisibility(group.key, termIds, value);
+        }
+      });
+    row.querySelector('input').disabled = !entries.length;
+    if (!node.children?.length) row.className += ' heurist-graph-legend-leaf';
+    return node.children?.length ? this.branch(`relation:tree:${node.id}`, row, node.children.map(child => this.term(groups, child))) : row;
   }
 
   branch(key, row, children) {

@@ -14,8 +14,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { VocabularyProvider } from "../../src/data/VocabularyProvider.js";
 
-/** Stub of HeuristApiClient.get for /fields, /trl, and /trm. */
-function stubApiClient({ fields = {}, children = {}, terms = {} } = {}) {
+/** Stub of HeuristApiClient.get for /fields. */
+function stubApiClient({ fields = {} } = {}) {
   const calls = [];
   return {
     calls,
@@ -27,23 +27,6 @@ function stubApiClient({ fields = {}, children = {}, terms = {} } = {}) {
           items: ids
             .filter((id) => fields[id] != null)
             .map((id) => ({ dty_ID: String(id), dty_Name: fields[id] })),
-        };
-      }
-      if (path === "/trl") {
-        const parentId = Number(query.parentId);
-        return {
-          items: (children[parentId] || []).map((trm_ID) => ({
-            trl_ParentID: parentId,
-            trl_TermID: trm_ID,
-          })),
-        };
-      }
-      if (path === "/trm") {
-        const ids = String(query.trm_ID).split(",").map(Number);
-        return {
-          items: ids
-            .filter((id) => terms[id] != null)
-            .map((id) => ({ trm_ID: String(id), trm_Label: terms[id] })),
         };
       }
       throw new Error(`unexpected path ${path}`);
@@ -67,68 +50,83 @@ test("VocabularyProvider resolves detail-type names and caches ids and misses", 
   assert.equal(api.calls.filter((c) => c.path === "/fields").length, 1);
 });
 
-test("VocabularyProvider walks the relation-type tree and labels every node", async () => {
-  // 3260 Ascendants -> 3089 IsParentOf -> {3095, 3104}; 3115 IsGrandParentOf (leaf)
-  const api = stubApiClient({
-    children: { 3260: [3089, 3115], 3089: [3095, 3104], 3115: [], 3095: [], 3104: [] },
-    terms: {
-      3260: "Ascendants",
-      3089: "IsParentOf",
-      3115: "IsGrandParentOf",
-      3095: "IsBiologicalParentOf",
-      3104: "IsAdoptiveParentOf",
-    },
-  });
-  const provider = new VocabularyProvider({ apiClient: api });
 
-  const { names, trees } = await provider.getRelationTypeTrees([3260]);
+const node = (id, label, children = []) => ({ id, label, children });
 
-  assert.equal(names.get(3260), "Ascendants");
-  assert.equal(names.get(3095), "IsBiologicalParentOf");
-  assert.deepEqual(trees[3260], {
-    id: 3260,
-    label: "Ascendants",
-    children: [
-      {
-        id: 3089,
-        label: "IsParentOf",
-        children: [
-          { id: 3095, label: "IsBiologicalParentOf", children: [] },
-          { id: 3104, label: "IsAdoptiveParentOf", children: [] },
-        ],
-      },
-      { id: 3115, label: "IsGrandParentOf", children: [] },
-    ],
-  });
-
-  // Every subtree fetched exactly once.
-  assert.equal(api.calls.filter((c) => c.path === "/trl").length, 5);
-  assert.equal(api.calls.filter((c) => c.path === "/trm").length, 1);
+test('Relation types load labeled ancestor trees in one batch and cache misses', async () => {
+  const calls = [];
+  const provider = new VocabularyProvider({ apiClient: { get: async (path, options) => {
+    calls.push({ path, ...options });
+    return { items: [node(1, 'Family', [node(2, 'Parent', [node(3, 'Biological'), node(4, 'Adoptive')])]), node(10, 'Work', [node(11, 'Colleague')])] };
+  } } });
+  const { trees, names } = await provider.getRelationTypeTrees([3, 4, 11, 999, 3]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/termlinks');
+  assert.deepEqual(calls[0].query, { termId: '3,4,11,999', tree: 1, limit: 1000 });
+  assert.equal(names.get(2), 'Parent');
+  assert.deepEqual(trees[1].children[0].children.map(n => n.id), [4, 3]);
+  assert.equal(trees[10].children[0].id, 11);
+  assert.equal(trees[999].label, '999');
+  assert.equal(names.has(999), false);
+  await provider.getRelationTypeTrees([3, 4, 11, 999]);
+  const subset = await provider.getRelationTypeTrees([3]);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Object.keys(subset.trees), ['1']);
+  assert.deepEqual(subset.trees[1].children[0].children.map(n => n.id), [3]);
 });
 
-test("VocabularyProvider tolerates cycles and depth without looping forever", async () => {
-  const api = stubApiClient({
-    children: { 10: [11], 11: [10] }, // 10 <-> 11 cycle
-    terms: { 10: "A", 11: "B" },
-  });
-  const provider = new VocabularyProvider({ apiClient: api });
-  const { trees } = await provider.getRelationTypeTrees([10]);
-  assert.equal(trees[10].label, "A");
-  assert.equal(trees[10].children[0].label, "B");
-  // B's re-reference to A is cut (no infinite recursion).
-  assert.deepEqual(trees[10].children[0].children, [{ id: 10, label: "A", children: [] }]);
+test('New branches merge into cached ancestors without losing earlier branches', async () => {
+  const calls = [];
+  const provider = new VocabularyProvider({ apiClient: { get: async (_path, { query }) => {
+    calls.push(query.termId);
+    return { items: [node(1, 'Vocabulary', [node(Number(query.termId), query.termId)])] };
+  } } });
+  await provider.getRelationTypeTrees([2]);
+  const result = await provider.getRelationTypeTrees([2, 3]);
+  assert.deepEqual(calls, ['2', '3']);
+  assert.deepEqual(result.trees[1].children.map(n => n.id), [2, 3]);
 });
 
-test("VocabularyProvider keeps numeric fallback when the API fails", async () => {
-  const api = {
-    async get() {
-      throw new Error("network down");
-    },
-  };
-  const provider = new VocabularyProvider({ apiClient: api });
-  const names = await provider.getFieldNames([1, 2]);
-  assert.equal(names.size, 0);
-  const { names: termNames, trees } = await provider.getRelationTypeTrees([3260]);
-  assert.equal(termNames.size, 0);
-  assert.equal(trees[3260].label, "3260");
+test('Failed and malformed hierarchy responses remain retryable', async () => {
+  for (const failure of [new Error('network down'), { items: [node(1, 'Broken', [{ id: 2 }])] }, { items: [], pagination: { next: '/next' } }]) {
+    let attempts = 0;
+    const provider = new VocabularyProvider({ apiClient: { get: async () => {
+      if (!attempts++) { if (failure instanceof Error) throw failure; return failure; }
+      return { items: [node(1, 'Vocabulary', [node(2, 'Resolved')])] };
+    } } });
+    const first = await provider.getRelationTypeTrees([2]);
+    assert.equal(first.names.size, 0);
+    assert.equal(first.trees[2].label, '2');
+    const retry = await provider.getRelationTypeTrees([2]);
+    assert.equal(retry.names.get(2), 'Resolved');
+    assert.equal(attempts, 2);
+  }
+});
+
+test('Hierarchy batches respect the server limit and propagate cancellation', async () => {
+  const batches = [];
+  const provider = new VocabularyProvider({ apiClient: { get: async (_path, { query }) => {
+    batches.push(query.termId.split(',')); return { items: [] };
+  } } });
+  await provider.getRelationTypeTrees(Array.from({ length: 1001 }, (_, i) => i + 1));
+  assert.deepEqual(batches.map(b => b.length), [1000, 1]);
+  const controller = new AbortController();
+  controller.abort();
+  const aborted = new VocabularyProvider({ apiClient: { get: async (_path, { signal }) => { assert.equal(signal, controller.signal); throw signal.reason; } } });
+  await assert.rejects(aborted.getRelationTypeTrees([2], { signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(aborted.resolvedTerms.size, 0);
+});
+
+test('Empty relation sets require no API call and deep ancestor trees are preserved', async () => {
+  let calls = 0;
+  let root = node(30, '30');
+  for (let id = 29; id > 0; id--) root = node(id, String(id), [root]);
+  const provider = new VocabularyProvider({ apiClient: { get: async () => { calls++; return { items: [root] }; } } });
+  assert.deepEqual(await provider.getRelationTypeTrees([]), { names: new Map(), trees: {} });
+  assert.equal(calls, 0);
+  const result = await provider.getRelationTypeTrees([30]);
+  assert.equal(result.names.size, 30);
+  let last = result.trees[1];
+  while (last.children.length) last = last.children[0];
+  assert.equal(last.id, 30);
 });

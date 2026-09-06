@@ -270,6 +270,9 @@ export class GraphApplication extends EventTarget {
           : { names: new Map(), trees: {} },
         this.vocabularyProvider.getRecordTypeNames?.(this.graph.records.map(r => r.recordTypeId), { signal }) || new Map(),
       ]);
+
+console.log("Vocabulary resolved", { fields, relations, recordTypes });
+
       if (generation !== undefined && generation !== this.generation) return;
       this.edgeLabels = { fields, relationTypes: relations.names };
       this.relationTypeTrees = relations.trees;

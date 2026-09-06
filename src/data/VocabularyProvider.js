@@ -14,8 +14,7 @@
  * ids into human labels for the graph and the legend:
  *
  *   - detail types: GET /fields?details=name&dty_ID=1,3,16
- *   - relation types: GET /trl?parentId=<id> (direct children, walked
- *     recursively into a tree) then GET /trm?details=name&trm_ID=... for labels
+ *   - relation types: GET /termlinks?termId=<csv>&tree=1 for labeled ancestor trees
  *
  * Every lookup is cached by id (including misses) so repeated loads and node
  * expansions only fetch ids not seen before.
@@ -51,13 +50,13 @@ function pick(cache, ids) {
 }
 
 export class VocabularyProvider {
-  constructor({ apiClient, maxTreeDepth = 12 } = {}) {
+  constructor({ apiClient } = {}) {
     this.apiClient = apiClient;
-    this.maxTreeDepth = maxTreeDepth;
     this.recordTypeNames = new Map();
     this.fieldNames = new Map(); // dty_ID -> name (null = looked up, not found)
     this.termNames = new Map(); // trm_ID -> label (null = looked up, not found)
-    this.termChildren = new Map(); // trm_ID -> number[] direct children
+    this.termParents = new Map(); // trm_ID -> real parent in the returned ancestor path
+    this.resolvedTerms = new Set(); // successful lookups, including missing IDs
   }
 
   /**
@@ -114,90 +113,72 @@ export class VocabularyProvider {
   }
 
   /**
-   * Build the descendant tree of every relation-type root and resolve labels
-   * for every term in it. The trees are meant to be kept by the legend
-   * renderer; `names` covers roots and descendants alike.
-   *
-   * @param {number[]} rootIds relation-type trm_ID values seen on edges.
-   * @returns {Promise<{names: Map<number,string>, trees: Record<number, object>}>}
-   *   `trees[rootId]` is `{ id, label, children: [...] }` (recursive).
+   * Resolve observed relation types and their ancestor paths in batches.
+   * Trees are keyed by vocabulary (or the highest available ancestor).
+   * Cached paths are combined for the current request, so loading a new branch
+   * never replaces an earlier branch or leaks unrelated cached vocabularies.
    */
-  async getRelationTypeTrees(rootIds, { signal } = {}) {
-    const roots = uniqueIds(rootIds);
-    if (!roots.length) return { names: new Map(), trees: {} };
-
-    const seen = new Set();
-    const walk = async (id, depth, ancestors = new Set()) => {
-      if (ancestors.has(id)) return { id, children: [] };
-      seen.add(id);
-      if (depth >= this.maxTreeDepth) return { id, children: [] };
-      const childIds = await this.#childTermIds(id, signal);
-      const children = await Promise.all(
-        childIds.map((childId) => walk(childId, depth + 1, new Set([...ancestors, id]))),
-      );
-      return { id, children };
-    };
-
-    const bare = {};
-    for (const root of roots) bare[root] = await walk(root, 0);
-    await this.#loadTermNames([...seen], signal);
-
-    const decorate = (node) => ({
-      id: node.id,
-      label: this.termNames.get(node.id) ?? String(node.id),
-      children: node.children.map(decorate),
-    });
-    const trees = {};
-    for (const root of roots) trees[root] = decorate(bare[root]);
-    return { names: pick(this.termNames, [...seen]), trees };
-  }
-
-  /** GET /trl?parentId=<id> -> direct child trm_ID list (cached). */
-  async #childTermIds(id, signal) {
-    if (this.termChildren.has(id)) return this.termChildren.get(id);
-    let rows = [];
-    try {
-      const payload = await this.apiClient.get("/trl", {
-        query: { parentId: id },
-        signal,
-      });
-      rows = rowsOf(payload);
-    } catch (error) {
-      if (error?.name === "AbortError") throw error;
-      this.termChildren.set(id, []);
-      return [];
-    }
-    const childIds = uniqueIds(
-      rows.map((row) => Number(row?.trl_TermID ?? row?.trm_ID ?? row?.id)),
-    );
-    this.termChildren.set(id, childIds);
-    return childIds;
-  }
-
-  /** GET /trm?details=name&trm_ID=<csv> -> fills `termNames` (cached, misses too). */
-  async #loadTermNames(ids, signal) {
-    const missing = uniqueIds(ids).filter((id) => !this.termNames.has(id));
-    if (!missing.length) return;
-    let rows = [];
-    try {
-      const payload = await this.apiClient.get("/trm", {
-        query: { details: "name", trm_ID: missing.join(",") },
-        signal,
-      });
-      rows = rowsOf(payload);
-    } catch (error) {
-      if (error?.name === "AbortError") throw error;
-      return;
-    }
-    for (const row of rows) {
-      const id = Number(row?.trm_ID ?? row?.id);
-      const name = row?.trm_Label ?? row?.trm_Name ?? row?.name ?? row?.label;
-      if (Number.isInteger(id) && id > 0 && name != null) {
-        this.termNames.set(id, String(name));
+  async getRelationTypeTrees(ids, { signal } = {}) {
+    const requested = uniqueIds(ids);
+    const missing = requested.filter(id => !this.resolvedTerms.has(id) && !this.termParents.has(id));
+    for (let offset = 0; offset < missing.length; offset += 1000) {
+      const batch = missing.slice(offset, offset + 1000);
+      try {
+        const payload = await this.apiClient.get('/termlinks', {
+          query: { termId: batch.join(','), tree: 1, limit: 1000 }, signal,
+        });
+        if (!Array.isArray(payload?.items) || payload.pagination?.next) {
+          throw new TypeError('Incomplete term hierarchy response');
+        }
+        // Validate before caching; errors must remain retryable.
+        const nodes = new Map();
+        const visit = (node, parent = null, ancestors = new Set()) => {
+          const id = Number(node?.id);
+          if (!Number.isInteger(id) || id < 1 || typeof node.label !== 'string' ||
+              !Array.isArray(node.children) || ancestors.has(id) || ancestors.size >= 128) {
+            throw new TypeError('Invalid term hierarchy node');
+          }
+          if (nodes.has(id) && nodes.get(id).parent !== parent) {
+            throw new TypeError('Conflicting term hierarchy parents');
+          }
+          nodes.set(id, { label: node.label, parent });
+          const path = new Set([...ancestors, id]);
+          node.children.forEach(child => visit(child, id, path));
+        };
+        payload.items.forEach(node => visit(node));
+        for (const [id, node] of nodes) {
+          this.termNames.set(id, node.label);
+          this.termParents.set(id, node.parent);
+        }
+        batch.forEach(id => this.resolvedTerms.add(id));
+      } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+        // Use known labels and numeric fallbacks; retry failed lookups later.
       }
     }
-    for (const id of missing) {
-      if (!this.termNames.has(id)) this.termNames.set(id, null);
+
+    const included = new Set();
+    for (const requestedId of requested) {
+      let id = requestedId;
+      const path = new Set();
+      while (id != null && !path.has(id)) {
+        included.add(id);
+        path.add(id);
+        id = this.termParents.get(id);
+      }
     }
+    const nodes = new Map([...included].map(id => [id, {
+      id, label: this.termNames.get(id) ?? String(id), children: [],
+    }]));
+    const trees = {};
+    for (const [id, node] of nodes) {
+      const parent = nodes.get(this.termParents.get(id));
+      if (parent) parent.children.push(node);
+      else trees[id] = node;
+    }
+    for (const node of nodes.values()) {
+      node.children.sort((a, b) => a.label.localeCompare(b.label) || a.id - b.id);
+    }
+    return { names: pick(this.termNames, [...included]), trees };
   }
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GraphApplication } from '../src/core/GraphApplication.js';
 import { GraphDocument } from '../src/core/GraphDocument.js';
 import { VocabularyProvider } from '../src/data/VocabularyProvider.js';
-import { relationForest } from '../src/ui/GraphLegend.js';
+import { GraphLegend, relationForest } from '../src/ui/GraphLegend.js';
 
 function fixture() {
   const records = [1, 2, 3].map(id => ({ id, recordTypeId: id === 3 ? 48 : 10 }));
@@ -86,3 +86,42 @@ test('record type names are cached and node-only graphs resolve their legend', a
   await app.load();
   assert.equal(app.getLegend().recordTypes[0].label, 'Persons');
 });
+
+ test('relationship groups share one vocabulary tree with each edge type once', () => {
+   const groups = [
+     { relationships: [{ id: 101, count: 2 }] },
+     { relationships: [{ id: 102, count: 1 }] },
+     { relationships: [{ id: 101, count: 3 }] },
+   ];
+   const forest = relationForest({ relationships: groups.flatMap(group => group.relationships) }, {
+     100: { id: 100, label: 'Family', children: [
+       { id: 101, label: 'Mother', children: [] },
+       { id: 102, label: 'Father', children: [] },
+     ] },
+   });
+   assert.equal(forest.length, 1);
+   assert.deepEqual(forest[0].children.map(node => node.id), [101, 102]);
+ });
+
+ test('shared hierarchy sums counts and toggles matching terms in every link group', async () => {
+   const calls = [];
+   const legend = new GraphLegend({ api: {
+     setRelationshipVisibility: async (...args) => calls.push(args),
+   } });
+   legend.checkbox = (label, count, checked, mixed, key, handler) => ({
+     label, count, checked, mixed, key, handler, querySelector: () => ({}),
+   });
+   legend.branch = (key, row, children) => ({ key, row, children });
+   const groups = [
+     { key: 'a', visible: true, relationships: [{ id: 101, count: 2, visible: true }] },
+     { key: 'b', visible: true, relationships: [{ id: 101, count: 3, visible: false }, { id: 102, count: 1, visible: true }] },
+   ];
+   const result = legend.term(groups, { id: 100, label: 'Family', children: [
+     { id: 101, label: 'Mother', children: [] }, { id: 102, label: 'Father', children: [] },
+   ] });
+   assert.equal(result.row.count, 6);
+   assert.equal(result.row.mixed, true);
+   assert.equal(result.children[0].count, 5);
+   await result.children[0].handler(false);
+   assert.deepEqual(calls, [['a', [101], false], ['b', [101], false]]);
+ });
