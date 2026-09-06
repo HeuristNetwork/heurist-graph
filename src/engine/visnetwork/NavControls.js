@@ -17,6 +17,8 @@
  * hide their button groups.
  */
 
+import { $HR } from "@heurist/client-core/ui";
+
 const ZOOM_STEP = 1.2;
 const PAN_STEP = 80; // canvas pixels per press
 
@@ -41,7 +43,7 @@ export class NavControls {
    * @param {HTMLElement} container - the same element the Network is mounted in.
    * @param {import("vis-network/standalone").Network} network
    */
-  constructor(container, network) {
+  constructor(container, network, onRearrange = () => {}) {
     this.network = network;
     this.root = document.createElement("div");
     this.root.className = "heurist-graph-nav";
@@ -65,7 +67,11 @@ export class NavControls {
       navButton("fa-expand", "Fit graph", () => this.#fit()),
     );
 
-    this.root.append(this.panGroup, this.zoomGroup);
+    this.rearrangeButton = navButton("fa-rotate-right", $HR("Rearrange"), onRearrange);
+    this.bottomGroup = document.createElement("div");
+    this.bottomGroup.className = "heurist-graph-nav-bottom";
+    this.bottomGroup.append(this.zoomGroup, this.rearrangeButton);
+    this.root.append(this.panGroup, this.bottomGroup);
     container.appendChild(this.root);
   }
 
@@ -79,7 +85,10 @@ export class NavControls {
     const showPan = nativeControls.pan !== false;
     this.zoomGroup.hidden = !showZoom;
     this.panGroup.hidden = !showPan;
-    this.root.hidden = !showZoom && !showPan;
+    const showRearrange = nativeControls.rearrange !== false;
+    this.rearrangeButton.hidden = !showRearrange;
+    this.bottomGroup.hidden = !showZoom && !showRearrange;
+    this.root.hidden = !showZoom && !showPan && !showRearrange;
   }
 
   #zoom(factor) {

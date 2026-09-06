@@ -112,6 +112,8 @@ export class GraphApplication extends EventTarget {
       this.config.engineOptions = {
         ...this.config.engineOptions,
         gravity: normalized.config.defaults.gravity,
+        layoutMode: normalized.config.defaults.layoutMode,
+        movement: normalized.config.defaults.movement,
         scaling: normalized.config.defaults.scaling,
         showNodeLabels: normalized.config.defaults.showNodeLabels,
         showEdgeLabels: normalized.config.defaults.showEdgeLabels,
@@ -396,6 +398,8 @@ console.log("Vocabulary resolved", { fields, relations, recordTypes });
     this.config.engineOptions = {
       ...this.config.engineOptions,
       gravity: defaults.gravity,
+      layoutMode: defaults.layoutMode,
+      movement: defaults.movement,
       scaling: defaults.scaling,
       showNodeLabels: defaults.showNodeLabels,
       showEdgeLabels: defaults.showEdgeLabels,

@@ -171,6 +171,7 @@ export class GraphConfigurationDialog {
     controls.append(legend,
       this.check("options.nativeControls.zoom", "Zoom"),
       this.check("options.nativeControls.pan", "Pan"),
+      this.check("options.nativeControls.rearrange", "Rearrange"),
     );
     body.append(controls);
   }
@@ -178,8 +179,19 @@ export class GraphConfigurationDialog {
   buildGraphDefaults(body) {
     this.select(body, "config.defaults.maxNodes", "Nodes limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
     this.select(body, "config.defaults.maxEdges", "Edges limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
+    this.select(body, "config.defaults.layoutMode", "Layout", [
+      ["forceAtlas2", "Automatic (ForceAtlas2)"],
+      ["automatic", "Gravity (Barnes–Hut)"],
+      ["hierarchical-ud", "Hierarchical top-down"],
+      ["hierarchical-lr", "Hierarchical left-right"],
+      ["record-types", "Group by record type"],
+      ["grid", "Grid"],
+    ]);
+    this.fields.get("config.defaults.layoutMode").control.addEventListener("change", () => this.applyDependencies());
+    this.select(body, "config.defaults.movement", "Movement", [
+      ["continuous", "Continuous"], ["once", "Freeze"],
+    ]);
     this.select(body, "config.defaults.gravity", "Gravity", [
-      ["off", "Off"],
       ["loose", "Loose"],
       ["normal", "Normal"],
       ["tight", "Tight"],
@@ -195,8 +207,7 @@ export class GraphConfigurationDialog {
       ["", "Built-in renderer (vis native)"],
     ]);
     this.textarea(body, "config.defaults.emptyResultMessage", "Empty result message", 3);
-    this.text(body, "config.defaults.nodeStyle", "Default node style");
-    this.text(body, "config.defaults.edgeStyle", "Default edge style");
+
   }
 
   buildGraphInteraction(body) {
@@ -628,6 +639,12 @@ export class GraphConfigurationDialog {
   }
 
   applyDependencies() {
+    const layout = this.fields.get("config.defaults.layoutMode")?.control;
+    const gravity = this.fields.get("config.defaults.gravity")?.control;
+    const fixedLayout = ["grid", "record-types"].includes(layout?.value);
+    if (gravity) gravity.disabled = fixedLayout || layout?.value.startsWith("hierarchical-");
+    const movement = this.fields.get("config.defaults.movement")?.control;
+    if (movement) movement.disabled = fixedLayout;
     const optionsControl = this.fields.get("options.ui.showOptions")?.control;
     if (optionsControl) optionsControl.disabled = this.mode !== "website";
     const datasetsAll = this.fields.get("options.datasets.allowAll");

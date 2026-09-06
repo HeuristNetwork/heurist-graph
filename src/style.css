@@ -168,3 +168,6 @@ label.heurist-data-dataset { display:flex; align-items:center; gap:6px; font-wei
 .heurist-graph-legend-branch-header > .heurist-module-icon-button { box-sizing:border-box; width:24px; flex:0 0 24px; }
 .heurist-graph-legend-leaf { position:relative; padding-left:24px; }
 .heurist-graph-legend-leaf::before { content:''; position:absolute; left:0; width:24px; height:1em; pointer-events:none; }
+
+.heurist-graph-nav-bottom { display:flex; gap:3px; }
+.heurist-graph-nav-bottom[hidden], .heurist-graph-nav-button[hidden] { display:none !important; }

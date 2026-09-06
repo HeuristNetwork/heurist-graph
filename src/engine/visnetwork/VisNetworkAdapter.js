@@ -14,12 +14,11 @@
 import { DataSet, Network } from "vis-network/standalone";
 import { GraphEngineAdapter } from "../GraphEngineAdapter.js";
 import { NavControls } from "./NavControls.js";
+import { layoutOptions, NetworkMovement, fixedPositions } from "./NetworkLayout.js";
 
 /** Default label length; longer titles are truncated with an ellipsis. */
 const DEFAULT_LABEL_MAX_LENGTH = 40;
 
-/** "Gravity" presets shown in the settings dialog, in vis-network terms. */
-const GRAVITY_PRESETS = { loose: -4000, normal: -2000, tight: -800 };
 
 export class VisNetworkAdapter extends GraphEngineAdapter {
   async initialize({
@@ -50,6 +49,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
       { nodes: this.nodes, edges: this.edges },
       networkOptions(options),
     );
+    this.movement = new NetworkMovement(this.network);
     this.network.on("doubleClick", ({ nodes }) => {
       if (nodes.length) this.onNodeActivate?.(Number(nodes[0]));
     });
@@ -65,7 +65,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.network.on("zoom", () => this.#hidePopup());
     // Replaces vis-network's `interaction.navigationButtons` (PNG glyphs that
     // can't be recoloured or toggled individually) - see NavControls.js.
-    this.navControls = new NavControls(container, this.network);
+    this.navControls = new NavControls(container, this.network, () => this.rearrange());
     this.navControls.setVisibility(options.nativeControls);
   }
 
@@ -121,6 +121,15 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         relationshipId: edge.relationshipId || undefined,
       })),
     );
+    this.rearrange();
+  }
+
+  rearrange() {
+    if (!this.nodes?.length) return;
+    this.#hidePopup();
+    this.movement?.arrange(this.options);
+    const positions = fixedPositions(this.nodes.get(), this.options.layoutMode);
+    if (positions.length) this.nodes.update(positions);
   }
 
   /**
@@ -172,6 +181,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.options = { ...this.options, ...options };
     this.network?.setOptions(networkOptions(this.options));
     this.navControls?.setVisibility(this.options.nativeControls);
+    this.rearrange();
   }
 
   async setSelection(recordIds) {
@@ -205,6 +215,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.popup = null;
     this.navControls?.destroy();
     this.navControls = null;
+    this.movement?.destroy();
     this.network?.destroy();
     this.network = null;
     this.nodes = null;
@@ -340,38 +351,11 @@ function popupPlaceholderContent() {
 }
 
 function networkOptions(options) {
-  const physicsOverride = options.physics;
   const scalingEnabled = options.scaling !== false;
   const popupDelaySeconds = Number(options.popupDelay);
   return {
     autoResize: true,
-    physics:
-      options.gravity === "off" || physicsOverride === false
-        ? false
-        : {
-            enabled: true,
-            solver: "barnesHut",
-            barnesHut: {
-              // "Gravity": a stronger (more negative) gravitationalConstant
-              // spreads nodes further apart; centralGravity pulls the whole
-              // graph back toward the center so it doesn't drift off-canvas.
-              gravitationalConstant:
-                GRAVITY_PRESETS[options.gravity] ?? GRAVITY_PRESETS.normal,
-              centralGravity: 0.3,
-              springLength: 120,
-              springConstant: 0.04,
-              damping: 0.09,
-              avoidOverlap: 0.1,
-            },
-            // Fitting the viewport on every stabilization pass (vis-network's
-            // own default) re-centers the view on any data churn - including
-            // an unrelated resize/redraw - which is disorienting. GraphApplication
-            // calls fit() explicitly only for a genuinely new/switched graph.
-            stabilization: { enabled: true, iterations: 200, fit: false },
-            ...(physicsOverride && typeof physicsOverride === "object"
-              ? physicsOverride
-              : {}),
-          },
+    ...layoutOptions(options),
     interaction: {
       hover: true,
       // Custom pan/zoom overlay is rendered by NavControls instead - the
@@ -405,10 +389,6 @@ function networkOptions(options) {
       arrows: { to: { enabled: true, scaleFactor: 0.6 } },
       font: { size: 11, align: "middle" },
       ...options.edges,
-    },
-    layout: {
-      improvedLayout: true,
-      ...options.layout,
     },
     ...(options.groups ? { groups: options.groups } : {}),
   };

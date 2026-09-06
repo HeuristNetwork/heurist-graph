@@ -39,7 +39,9 @@ export class GraphLegend {
     else if (model.limits?.truncated) edgesSection.append(element('p', $HR('Graph is truncated; only links between loaded records are shown.'), 'heurist-graph-legend-note'));
     const relationshipGroups = model.links.filter(group => group.relationships?.length);
     for (const group of model.links.filter(group => !group.relationships?.length)) {
-      const label = `${group.label || group.spec || group.key}${group.endpoints?.length ? ` (${group.endpoints.join(', ')})` : ''}`;
+      const endpoints = group.endpoints || [];
+      const endpointSummary = endpoints.slice(0, 4).join(', ') + (endpoints.length > 4 ? ', …' : '');
+      const label = `${group.label || group.spec || group.key}${endpoints.length ? ` (${endpointSummary})` : ''}`;
       const hiddenCount = (group.relationships || []).filter(entry => !entry.visible).reduce((sum, entry) => sum + entry.count, 0);
       const row = this.checkbox(label, group.count, group.visible && hiddenCount < group.count, group.visible && hiddenCount > 0 && hiddenCount < group.count, group.key, value => this.api.setLinkVisibility(group.key, value));
       edgesSection.append(row);

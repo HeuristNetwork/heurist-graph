@@ -64,6 +64,8 @@ export function getHeuristGraphConfig() {
     engineOptions: {
       ...settings.engineOptions,
       gravity: persistedSettings.config.defaults.gravity,
+      layoutMode: persistedSettings.config.defaults.layoutMode,
+      movement: persistedSettings.config.defaults.movement,
       scaling: persistedSettings.config.defaults.scaling,
       showNodeLabels: persistedSettings.config.defaults.showNodeLabels,
       showEdgeLabels: persistedSettings.config.defaults.showEdgeLabels,
@@ -72,6 +74,7 @@ export function getHeuristGraphConfig() {
       popupTemplate: persistedSettings.config.defaults.popupTemplate,
       selectionEnabled: persistedSettings.options.interaction.selectionEnabled,
       popupEnabled: persistedSettings.options.interaction.popupEnabled,
+      nativeControls: persistedSettings.options.nativeControls,
     },
     persistedSettings,
     ui: persistedSettings.options.ui,

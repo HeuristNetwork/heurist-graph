@@ -120,3 +120,31 @@
 #Show edge labels#Afficher les étiquettes des liens
 
 #Off#Désactivée
+
+#Layout#Disposition
+
+#Automatic (Barnes–Hut)#Automatique (Barnes–Hut)
+
+#Hierarchical top-down#Hiérarchique de haut en bas
+
+#Hierarchical left-right#Hiérarchique de gauche à droite
+
+#ForceAtlas2#ForceAtlas2
+
+#Movement#Mouvement
+
+#Continuous#Continu
+
+#Arrange once, then freeze#Disposer une fois, puis figer
+
+#Rearrange#Réorganiser
+
+#Automatic (ForceAtlas2)#Automatique (ForceAtlas2)
+
+#Gravity (Barnes–Hut)#Gravité (Barnes–Hut)
+
+#Freeze#Figer
+
+#Group by record type#Regrouper par type de fiche
+
+#Grid#Grille

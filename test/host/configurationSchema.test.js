@@ -247,7 +247,8 @@ test("label visibility and disabled gravity survive serialization", () => {
   assert.equal(defaults.showEdgeLabels, false);
   const settings = { config: { defaults: { gravity: "off", showNodeLabels: false, showEdgeLabels: true } } };
   const result = normalizeGraphConfigurationSettings(serializeGraphConfigurationSettings(settings));
-  assert.equal(result.config.defaults.gravity, "off");
+  assert.equal(result.config.defaults.gravity, "normal");
+  assert.equal(result.config.defaults.movement, "once");
   assert.equal(result.config.defaults.showNodeLabels, false);
   assert.equal(result.config.defaults.showEdgeLabels, true);
 });

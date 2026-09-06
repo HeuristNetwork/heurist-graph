@@ -90,6 +90,7 @@ function normalizeOptions(source, defaults) {
       ),
       zoom: boolean(controls.zoom, defaults.nativeControls.zoom),
       pan: boolean(controls.pan, defaults.nativeControls.pan),
+      rearrange: boolean(controls.rearrange, defaults.nativeControls.rearrange),
     },
     datasets: {
       allowAll: boolean(datasets.allowAll, defaults.datasets.allowAll),
@@ -168,9 +169,11 @@ function normalizeConfig(source, defaults) {
       maxEdges: enumValue(Number(configured.maxEdges), [1000, 5000, 10000], defaults.defaults.maxEdges),
       gravity: enumValue(
         configured.gravity,
-        ["off", "loose", "normal", "tight"],
+        ["loose", "normal", "tight"],
         defaults.defaults.gravity,
       ),
+      layoutMode: enumValue(configured.layoutMode, ["automatic", "hierarchical-ud", "hierarchical-lr", "forceAtlas2", "record-types", "grid"], defaults.defaults.layoutMode),
+      movement: enumValue(configured.movement, ["continuous", "once"], configured.gravity === "off" ? "once" : defaults.defaults.movement),
       scaling: boolean(configured.scaling, defaults.defaults.scaling),
       showNodeLabels: boolean(configured.showNodeLabels, defaults.defaults.showNodeLabels),
       showEdgeLabels: boolean(configured.showEdgeLabels, defaults.defaults.showEdgeLabels),

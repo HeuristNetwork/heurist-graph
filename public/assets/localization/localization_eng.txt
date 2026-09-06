@@ -119,3 +119,31 @@
 #Show edge labels#Show edge labels
 
 #Off#Off
+
+#Layout#Layout
+
+#Automatic (Barnes–Hut)#Automatic (Barnes–Hut)
+
+#Hierarchical top-down#Hierarchical top-down
+
+#Hierarchical left-right#Hierarchical left-right
+
+#ForceAtlas2#ForceAtlas2
+
+#Movement#Movement
+
+#Continuous#Continuous
+
+#Arrange once, then freeze#Arrange once, then freeze
+
+#Rearrange#Rearrange
+
+#Automatic (ForceAtlas2)#Automatic (ForceAtlas2)
+
+#Gravity (Barnes–Hut)#Gravity (Barnes–Hut)
+
+#Freeze#Freeze
+
+#Group by record type#Group by record type
+
+#Grid#Grid

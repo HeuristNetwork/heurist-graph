@@ -32,6 +32,7 @@ export const HEURIST_GRAPH_OPTIONS_DEFAULTS = Object.freeze({
     selectionActions: true,
     zoom: true,
     pan: true,
+    rearrange: true,
   }),
   datasets: Object.freeze({
     allowed: null,
@@ -61,6 +62,8 @@ export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
     maxEdges: 10000,
     // heurist-graph (vis-network) appearance defaults.
     gravity: "normal",
+    layoutMode: "automatic",
+    movement: "once",
     scaling: true,
     showNodeLabels: true,
     showEdgeLabels: false,
