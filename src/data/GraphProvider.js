@@ -36,12 +36,13 @@ export class GraphProvider {
     query,
     links,
     limits,
-    limit = 1000,
+    limit,
     offset = 0,
     signal,
   } = {}) {
     if (query == null || query === "")
       throw new TypeError("A graph query is required");
+    limit = limit ?? normalizeLimits(limits)?.maxNodes ?? 1000;
     const body = { query, limit, offset };
     const normalizedLinks = normalizeLinks(links);
     if (normalizedLinks !== undefined) body.links = normalizedLinks;

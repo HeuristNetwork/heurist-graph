@@ -14,17 +14,28 @@ export const DATASET_CONCEPT_CODE = "2-1100";
 
 /** Provides lightweight persisted Dataset records for selectors. */
 export class DatasetListProvider {
-  constructor({ apiClient, recordTypes }) {
+  constructor({ apiClient, recordTypes, onUnavailable = null }) {
     this.apiClient = apiClient;
     this.recordTypes = recordTypes;
+    this.onUnavailable = onUnavailable;
+    this.available = true;
   }
 
   async list({ ids = null, query = null, signal } = {}) {
-    const recordTypeId = await this.recordTypes.getIdByConceptCode(
-      DATASET_CONCEPT_CODE,
-      { signal },
-    );
     const normalizedIds = normalizeIds(ids);
+    const empty = { items: [], pagination: null, recordTypeId: null };
+    if (!this.available) return empty;
+    let recordTypeId;
+    try {
+      recordTypeId = await this.recordTypes.getIdByConceptCode(DATASET_CONCEPT_CODE, { signal });
+    } catch (error) {
+      // Older databases lack the optional Dataset definition. Do not suppress
+      // authentication, connection, or records-search failures.
+      if (error?.name === 'AbortError' || !/\bDefinition not found\b/i.test(error?.message || '')) throw error;
+      this.available = false;
+      this.onUnavailable?.();
+      return empty;
+    }
     if (Array.isArray(ids) && normalizedIds.length === 0) {
       return { items: [], pagination: null, recordTypeId };
     }

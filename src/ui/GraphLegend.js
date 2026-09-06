@@ -18,7 +18,16 @@ export class GraphLegend {
     if (model.total != null && model.total > count) {
       nodesSection.append(element('p', model.offset ? `${$HR('Loaded')} ${count} ${$HR('of')} ${model.total}` : `${$HR('First')} ${count} ${$HR('of')} ${model.total}`, 'heurist-graph-legend-note'));
     }
-    for (const row of model.recordTypes) nodesSection.append(this.checkbox(row.label || `Record type ${row.recordTypeId}`, row.count, row.visible, false, `node:${row.recordTypeId}`, value => this.api.setRecordTypeVisibility(row.recordTypeId, value)));
+    for (const row of model.recordTypes) {
+      const item = this.checkbox(row.label || `Record type ${row.recordTypeId}`, row.count, row.visible, false, `node:${row.recordTypeId}`, value => this.api.setRecordTypeVisibility(row.recordTypeId, value));
+      if (row.color) {
+        const swatch = element('span', null, 'heurist-graph-legend-color');
+        swatch.style.backgroundColor = row.color;
+        swatch.setAttribute('aria-hidden', 'true');
+        item.insertBefore(swatch, item.lastChild);
+      }
+      nodesSection.append(item);
+    }
     if (!model.recordTypes.length) nodesSection.append(element('p', $HR('No records')));
     const edgesHeading = element('h4', $HR('Edges (Links and Relations)'));
     if (editEnabled) edgesHeading.append(this.action('Define initial links', 'fa-link', this.onLinks));

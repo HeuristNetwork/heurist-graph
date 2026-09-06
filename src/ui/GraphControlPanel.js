@@ -134,12 +134,14 @@ export class GraphControlPanel {
 
   async editDataset() {
     const app = this.api.application;
+    if (app?.datasetAvailable === false || app?.config.persistedSettings?.options?.interaction?.readonly === true || app?.config.persistedSettings?.options?.interaction?.editEnabled === false) return;
     const id = this.api.getState().datasetId;
     if (id) {
       await app.host.editRecord(id);
       if (this.api.getState().datasetId === id) await this.api.setDataset(id);
     } else {
       const info = await this.datasetListProvider.list({ ids: [] });
+      if (!info.recordTypeId) return;
       const created = await app.host.addRecord(info.recordTypeId);
       const newId = Number(created?.recordId ?? created?.rec_ID ?? created?.id);
       if (newId > 0) await this.api.setDataset(newId);

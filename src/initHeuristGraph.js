@@ -63,7 +63,10 @@ export async function initHeuristGraph(config) {
   message.hidden = true;
   container.replaceChildren(canvas, message);
   const recordTypes = new RecordTypeProvider({ apiClient });
-  const datasetListProvider = new DatasetListProvider({ apiClient, recordTypes });
+  const datasetListProvider = new DatasetListProvider({
+    apiClient, recordTypes,
+    onUnavailable: () => application.disableDatasetEditing(),
+  });
   const filterListProvider = new FilterProvider({ apiClient });
   const reportTemplateProvider = new ReportTemplateProvider({
     baseUrl: heuristBaseUrl,

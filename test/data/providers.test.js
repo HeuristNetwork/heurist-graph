@@ -284,3 +284,28 @@ test("RecordDataProvider requests and validates record-type counts", async () =>
     /missing rectypes/,
   );
 });
+
+ test("missing Dataset definition returns an empty list and disables editing once", async () => {
+   let lookups = 0, disabled = 0;
+   const provider = new DatasetListProvider({
+     apiClient: { get: async () => { assert.fail("Must not query dataset records"); } },
+     recordTypes: { getIdByConceptCode: async () => { lookups++; throw new Error("Heurist API request failed: Definition not found"); } },
+     onUnavailable: () => { disabled++; },
+   });
+   assert.deepEqual(await provider.list(), { items: [], pagination: null, recordTypeId: null });
+   assert.deepEqual(await provider.list({ ids: [] }), { items: [], pagination: null, recordTypeId: null });
+   assert.equal(lookups, 1);
+   assert.equal(disabled, 1);
+   assert.equal(provider.available, false);
+ });
+
+ test("Dataset definition fallback preserves unrelated API errors and allows retry", async () => {
+   const error = new Error("Unauthorized");
+   let attempts = 0;
+   const provider = new DatasetListProvider({
+     recordTypes: { getIdByConceptCode: async () => { if (!attempts++) throw error; return 123; } },
+     onUnavailable: () => assert.fail("Must not disable datasets"),
+   });
+   await assert.rejects(provider.list(), error);
+   assert.equal((await provider.list({ ids: [] })).recordTypeId, 123);
+ });

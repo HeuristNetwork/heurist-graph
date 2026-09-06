@@ -41,7 +41,7 @@ export class GraphLegendEditor {
       save.disabled = true;
       try {
         if (app.generation !== generation) throw new Error($HR('The active graph changed. Reopen this editor.'));
-        if (app.config.persistedSettings?.options?.interaction?.editEnabled === false) throw new Error($HR('Editing is disabled.'));
+        if (app.datasetAvailable === false || app.config.persistedSettings?.options?.interaction?.readonly === true || app.config.persistedSettings?.options?.interaction?.editEnabled === false) throw new Error($HR('Editing is disabled.'));
         if (mode === 'links') {
           const value = links.value.trim();
           if (!value) throw new Error($HR('Enter link definitions or all.'));

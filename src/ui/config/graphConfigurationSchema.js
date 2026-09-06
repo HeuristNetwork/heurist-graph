@@ -164,8 +164,8 @@ function normalizeConfig(source, defaults) {
         configured.emptyResultMessage,
         defaults.defaults.emptyResultMessage,
       ),
-      maxNodes: enumValue(Number(configured.maxNodes), [1000, 5000, 10000, 25000], defaults.defaults.maxNodes),
-      maxEdges: enumValue(Number(configured.maxEdges), [1000, 5000, 10000, 25000], defaults.defaults.maxEdges),
+      maxNodes: enumValue(Number(configured.maxNodes), [1000, 5000, 10000], defaults.defaults.maxNodes),
+      maxEdges: enumValue(Number(configured.maxEdges), [1000, 5000, 10000], defaults.defaults.maxEdges),
       gravity: enumValue(
         configured.gravity,
         ["off", "loose", "normal", "tight"],

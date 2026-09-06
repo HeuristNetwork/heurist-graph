@@ -56,8 +56,9 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.network.on("select", ({ nodes }) =>
       this.onSelectionChange?.(nodes.map(Number)),
     );
-    this.network.on("click", ({ nodes, pointer }) => {
+    this.network.on("click", ({ nodes, edges, pointer }) => {
       if (nodes.length) this.#showPopup(nodes[0], pointer.DOM);
+      else if (edges.length) this.#showPopup(null, pointer.DOM, edges[0]);
       else this.#hidePopup();
     });
     this.network.on("dragStart", () => this.#hidePopup());
@@ -95,6 +96,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
           id: record.id,
           label: this.options?.showNodeLabels === false ? "" : truncateLabel(title, maxLength),
           group: record.recordTypeId || "unknown",
+          color: this.getNodeColor(record.recordTypeId),
           // Full (tag-stripped) text: vis-network's built-in hover tooltip.
           title,
           recordTypeId: record.recordTypeId || null,
@@ -109,7 +111,8 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         from: edge.from,
         to: edge.to,
         label: this.#edgeLabel(edge),
-        arrows: "to",
+        arrows: edge.relationshipId ? "to, from" : "to",
+        dashes: Boolean(edge.relationshipId),
         // Provenance carried through for legend grouping, edge styling, and
         // re-labelling once vocabulary names arrive (see setEdgeLabels).
         link: edge.link || undefined,
@@ -140,9 +143,19 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     );
   }
 
+  /** Shared node fill for the canvas and legend, including configured colors. */
+  getNodeColor(recordTypeId) {
+    const palette = ['#97C2FC', '#FFFF00', '#FB7E81', '#7BE141', '#6E6EFD', '#C2FABC', '#FFA807', '#6E6EFD', '#FFC0CB', '#AD85E4'];
+    const color = this.options?.groups?.[recordTypeId || 'unknown']?.color ?? this.options?.nodes?.color;
+    return typeof color === 'string' ? color : color?.background || palette[Math.abs(Number(recordTypeId) || 0) % palette.length];
+  }
+
   /** Name for an edge: relation type first, then detail type, then id. */
   #edgeLabel(edge) {
-    if (this.options?.showEdgeLabels !== true) return "";
+    return this.options?.showEdgeLabels === true ? this.#edgeName(edge) : "";
+  }
+
+  #edgeName(edge) {
     const relationshipId = edge.relationshipId || null;
     if (relationshipId && this.edgeLabels.relationTypes.get(relationshipId)) {
       return this.edgeLabels.relationTypes.get(relationshipId);
@@ -212,7 +225,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
    * else a small built-in title/type card. Set `options.customPopup: false`
    * to disable the click popup entirely and keep only the hover tooltip.
    */
-  #showPopup(nodeId, position) {
+  #showPopup(nodeId, position, edgeId = null) {
     if (this.options?.customPopup === false) return;
     // `popupEnabled` is the Configuration dialog's Interaction-section toggle
     // (`options.interaction.popupEnabled`); `customPopup` is the raw
@@ -220,7 +233,8 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     // native hover tooltip (`interaction.hover`/`title`, below) is a wholly
     // separate vis-network feature and is never affected by this flag.
     if (this.options?.popupEnabled === false) return;
-    const node = this.nodes?.get(nodeId);
+    const edge = edgeId == null ? null : this.edges?.get(edgeId);
+    const node = edge || this.nodes?.get(nodeId);
     if (!node || !this.container) return;
     if (!this.popup) {
       this.popup = document.createElement("div");
@@ -234,6 +248,16 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     this.popup.style.top = `${position.y}px`;
     this.popup.hidden = false;
 
+    if (edge) {
+      this.popupAbortController?.abort();
+      const title = document.createElement('div');
+      title.className = 'heurist-graph-popup-title';
+      title.textContent = this.#edgeName(edge) || (edge.relationshipId ? 'Relationship' : 'Link');
+      const endpoints = document.createElement('div');
+      endpoints.textContent = (this.nodes.get(edge.from)?.title || edge.from) + (edge.relationshipId ? ' ↔ ' : ' → ') + (this.nodes.get(edge.to)?.title || edge.to);
+      this.popup.replaceChildren(title, endpoints);
+      return;
+    }
     const template = this.options?.popupTemplate;
     if (template && typeof this.onPopupContentRequest === "function") {
       this.popup.replaceChildren(popupPlaceholderContent());

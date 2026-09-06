@@ -360,11 +360,28 @@ export class GraphApplication extends EventTarget {
    * through the dispatched event, instead of only ever taking effect on the
    * next full reload.
    */
+  /** Runtime fallback for databases without the optional Dataset record type. */
+  disableDatasetEditing() {
+    this.datasetAvailable = false;
+    const settings = this.config.persistedSettings || {};
+    this.config.persistedSettings = {
+      ...settings,
+      options: {
+        ...settings.options,
+        interaction: { ...settings.options?.interaction, readonly: true, editEnabled: false },
+      },
+    };
+  }
+
   async applyConfiguration(value) {
     const { normalizeGraphConfigurationSettings } = await import(
       "../ui/config/graphConfigurationSchema.js"
     );
     const normalized = normalizeGraphConfigurationSettings(value);
+    if (this.datasetAvailable === false) {
+      normalized.options.interaction.readonly = true;
+      normalized.options.interaction.editEnabled = false;
+    }
     const defaults = normalized.config.defaults;
     this.config.persistedSettings = normalized;
     this.config.ui = normalized.options.ui;
@@ -487,6 +504,7 @@ export class GraphApplication extends EventTarget {
       rules: this.dataset?.rules ?? this.config.rules ?? [],
       recordTypes: [...recordTypes.entries()].map(([recordTypeId, count]) => ({
         recordTypeId,
+        color: this.engine.getNodeColor?.(recordTypeId),
         label: this.recordTypeNames.get(recordTypeId) || `Record type ${recordTypeId}`,
         count,
         visible: !this.hiddenRecordTypes.has(recordTypeId),

@@ -41,8 +41,8 @@ test("initial host preferences are applied before the engine's first render", as
     loadPreferences: async () => ({
       config: {
         defaults: {
-          maxNodes: 10000,
-          maxEdges: 25000,
+          maxNodes: 5000,
+          maxEdges: 10000,
           gravity: "tight",
           scaling: false,
           labelLength: 60,
@@ -61,8 +61,8 @@ test("initial host preferences are applied before the engine's first render", as
 
   await application.initialize({ hidden: false });
 
-  assert.equal(application.config.limits.maxNodes, 10000);
-  assert.equal(application.config.limits.maxEdges, 25000);
+  assert.equal(application.config.limits.maxNodes, 5000);
+  assert.equal(application.config.limits.maxEdges, 10000);
   assert.equal(initializedOptions.gravity, "tight");
   assert.equal(initializedOptions.scaling, false);
   assert.equal(initializedOptions.labelMaxLength, 60);
@@ -152,8 +152,8 @@ test("applyConfiguration pushes engine options live and re-renders the current g
   const state = await application.applyConfiguration({
     config: {
       defaults: {
-        maxNodes: 25000,
-        maxEdges: 25000,
+        maxNodes: 10000,
+        maxEdges: 10000,
         gravity: "tight",
         scaling: false,
         labelLength: 60,
@@ -165,7 +165,7 @@ test("applyConfiguration pushes engine options live and re-renders the current g
     },
   });
 
-  assert.equal(application.config.limits.maxNodes, 25000);
+  assert.equal(application.config.limits.maxNodes, 10000);
   assert.equal(appliedOptions.gravity, "tight");
   assert.equal(appliedOptions.scaling, false);
   assert.equal(appliedOptions.labelMaxLength, 60);

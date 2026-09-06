@@ -113,7 +113,7 @@ test("GraphProvider posts the dedicated graph request with links and limits", as
   assert.equal(request.path, "/graph");
   assert.deepEqual(request.options.body, {
     query: "t:10",
-    limit: 1000,
+    limit: 10,
     offset: 0,
     links: "all",
     limits: { maxNodes: 10 },
@@ -574,3 +574,24 @@ test("GraphApplication emits selection changes from the graph engine", async () 
   assert.deepEqual(eventSelection, [8]);
   assert.deepEqual(publishedSelection, [8]);
 });
+
+ test("GraphProvider uses configured node budget as seed limit and preserves explicit pages", async () => {
+   const bodies = [];
+   const provider = new GraphProvider({ apiClient: { post: async (_path, { body }) => {
+     bodies.push(body); return graphEnvelope();
+   } } });
+   await provider.load({ query: "t:10", limits: { maxNodes: 5000 } });
+   await provider.load({ query: "t:10", limits: { maxNodes: 5000 }, limit: 50 });
+   assert.equal(bodies[0].limit, 5000);
+   assert.equal(bodies[0].limits.maxNodes, 5000);
+   assert.equal(bodies[1].limit, 50);
+ });
+
+ test("missing Dataset definition keeps the graph usable and enforces readonly preferences", async () => {
+   const app = new GraphApplication({ config: { selection: [], limits: {}, engineOptions: {} }, engine: { applyConfiguration: async () => {}, setGraph: async () => {}, setSelection: async () => {} } });
+   app.disableDatasetEditing();
+   assert.equal(app.config.persistedSettings.options.interaction.readonly, true);
+   await app.applyConfiguration({ options: { interaction: { readonly: false, editEnabled: true } } });
+   assert.equal(app.config.persistedSettings.options.interaction.readonly, true);
+   assert.equal(app.config.persistedSettings.options.interaction.editEnabled, false);
+ });
