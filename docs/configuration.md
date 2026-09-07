@@ -167,10 +167,27 @@ The child exposes `window.heuristGraph`:
   `setLinkVisibility(key, visible)` toggle legend groups without reloading;
 - `setSelection(recordIds)` updates selected records;
 - `clearSelection()` clears selection;
-- `getState()` returns query, selection, and graph record IDs;
+- `getState()` returns the active source (`query`, `datasetId`, `datasetTitle`),
+  `selection`, the loaded `recordIds`/`limits`, the base-scope `expansions`
+  (`{ rules, enabled, depth }`) and the `hidden` legend groups
+  (`{ recordTypes, links, relationships }`);
+- `openPreferencesDialog()` / `openPublishDialog()` open the configuration dialog
+  in preferences or publish mode;
 - `resize()` refreshes the renderer;
 - `addEventListener()` and `removeEventListener()` subscribe to module events;
 - `destroy()` tears down the application.
+
+### Publishing
+
+`openPublishDialog()` opens the configuration dialog in `publish` mode; on
+confirm it posts settings plus a **reproducible** `state` to the host
+`PublicationController` and then shows the published-link dialog (dispatching
+`heurist-graph-published`). The published `state` keeps the original source
+(`datasetId`, or `query` - never the expanded id list), the `selection`, the
+active base-scope `expansions`, and the `hidden` legend groups; `recordIds` are
+**not** stored - opening the publication re-activates the Dataset (or re-runs
+the query), then re-applies the saved expansions and visibility. Single-node
+(per-seed) expansions are not part of the published state.
 
 The `heurist-graph-selection-changed` event is emitted for both host-driven and
 renderer-driven selection changes. The embedded host wrapper forwards renderer

@@ -75,12 +75,73 @@ export class GraphApplication extends EventTarget {
       onNodeActivate: (id) => this.expandNode(id).catch(error => this.dispatch('heurist-graph-error', { error, operation:'expansion' })),
       onPopupContentRequest: (request) => this.requestPopupContent(request),
     });
-    if (this.config.query != null && this.config.query !== "") {
-      await this.load({ query: this.config.query });
-    } else {
-      this.#setEmptyState(true);
-    }
+    await this.#restoreInitialView();
     return this;
+  }
+
+  /**
+   * Reproduce a published (or host-seeded) view: activate the persisted Dataset
+   * by id, or run the persisted query, then re-apply the saved base-scope
+   * expansions and legend visibility. Matches heurist-data's publish/open cycle.
+   */
+  async #restoreInitialView() {
+    let loaded = false;
+    if (this.config.datasetId) {
+      try {
+        await this.setDataset(this.config.datasetId);
+        loaded = true;
+      } catch (error) {
+        this.dispatch("heurist-graph-error", {
+          error,
+          operation: "restore-dataset",
+        });
+      }
+    }
+    if (!loaded && this.config.query != null && this.config.query !== "") {
+      await this.load({ query: this.config.query });
+      loaded = true;
+    }
+    if (!loaded) {
+      this.#setEmptyState(true);
+      return;
+    }
+    await this.#restoreExpansions(this.config.initialExpansions);
+    await this.#restoreHiddenGroups(this.config.initialHidden);
+  }
+
+  /** Re-enable the published rules and drive the base scope to the saved depth. */
+  async #restoreExpansions(saved) {
+    if (!saved || !this.expansions) return;
+    const key = this.config.datasetId
+      ? `dataset:${this.config.datasetId}`
+      : "current";
+    if (Array.isArray(saved.rules) && saved.rules.length) {
+      this.ruleOverrides.set(key, structuredClone(saved.rules));
+      this.expansions.setRules(saved.rules);
+    }
+    const wrapped = this.expansions.rules || [];
+    (Array.isArray(saved.enabled) ? saved.enabled : []).forEach((on, index) => {
+      if (wrapped[index]) wrapped[index].enabled = on === true;
+    });
+    const depth = Math.max(0, Number(saved.depth) || 0);
+    if (depth > 0) await this.setExpansionDepth(depth);
+    else if (wrapped.some((rule) => rule.enabled)) await this.renderExpansions();
+  }
+
+  /** Restore hidden record types / link groups after the graph is on screen. */
+  async #restoreHiddenGroups(saved) {
+    if (!saved) return;
+    for (const id of saved.recordTypes || [])
+      this.hiddenRecordTypes.add(Number(id) || 0);
+    for (const groupKey of saved.links || []) this.hiddenLinks.add(String(groupKey));
+    for (const token of saved.relationships || [])
+      this.hiddenRelationships.add(String(token));
+    if (
+      this.hiddenRecordTypes.size ||
+      this.hiddenLinks.size ||
+      this.hiddenRelationships.size
+    )
+      await this.#renderVisible();
   }
 
   /**
@@ -756,6 +817,29 @@ export class GraphApplication extends EventTarget {
       selection: [...this.selection],
       recordIds: this.graph?.recordIds || [],
       limits: this.graph?.limits || null,
+      expansions: this.#expansionState(),
+      hidden: {
+        recordTypes: [...this.hiddenRecordTypes],
+        links: [...this.hiddenLinks],
+        relationships: [...this.hiddenRelationships],
+      },
+    };
+  }
+
+  /**
+   * Reproducible base-scope expansion state for publication: the effective rule
+   * definitions (dataset/config rules plus any "Define expansions" override), a
+   * parallel array of which rules are active, and the shared expansion depth.
+   * Per-seed (single-node) expansions are intentionally not captured.
+   */
+  #expansionState() {
+    if (!this.expansions) return null;
+    const wrapped = this.expansions.rules || [];
+    if (!wrapped.length) return null;
+    return {
+      rules: this.getExpansionRules(),
+      enabled: wrapped.map((rule) => rule.enabled === true),
+      depth: this.expansions.scope().depth || 0,
     };
   }
 

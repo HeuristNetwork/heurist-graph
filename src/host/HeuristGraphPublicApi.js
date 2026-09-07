@@ -50,7 +50,9 @@ export class HeuristGraphPublicApi {
   publish(value, publishOptions = {}) {
     const settings = serializeGraphConfigurationSettings(value);
     const state =
-      publishOptions.preserveCurrentState === false ? {} : this.getState();
+      publishOptions.preserveCurrentState === false
+        ? {}
+        : publicationState(this.getState());
     return this.application.host.publish({
       format: "heurist-publication",
       version: 1,
@@ -178,6 +180,43 @@ export class HeuristGraphPublicApi {
     this.publishedDialog = null;
     return this.application.destroy();
   }
+}
+
+/**
+ * Reduce the live application state to what reproduces the published view:
+ * the source (Dataset id or the original query - never the expanded id list),
+ * the selection, the active base-scope expansions, and hidden legend groups.
+ * `recordIds`/`limits` are dropped - the graph is rebuilt on open by re-running
+ * the source and re-applying the expansions.
+ */
+function publicationState(state) {
+  const out = {
+    query: state.query ?? null,
+    datasetId: state.datasetId ?? null,
+    datasetTitle: state.datasetTitle ?? null,
+    selection: Array.isArray(state.selection) ? state.selection : [],
+  };
+  const expansions = state.expansions;
+  if (expansions && Array.isArray(expansions.rules) && expansions.rules.length) {
+    out.expansions = {
+      rules: expansions.rules,
+      enabled: expansions.enabled || [],
+      depth: expansions.depth || 0,
+    };
+  }
+  const hidden = state.hidden || {};
+  if (
+    (hidden.recordTypes && hidden.recordTypes.length) ||
+    (hidden.links && hidden.links.length) ||
+    (hidden.relationships && hidden.relationships.length)
+  ) {
+    out.hidden = {
+      recordTypes: hidden.recordTypes || [],
+      links: hidden.links || [],
+      relationships: hidden.relationships || [],
+    };
+  }
+  return out;
 }
 
 /** Force a concrete UI language into publication settings ("auto" cannot resolve without a runtime). */

@@ -30,7 +30,12 @@ export function getHeuristGraphConfig() {
     settings?.format || settings?.options || settings?.config,
   );
   const persistedSettings = normalizeGraphConfigurationSettings(settings);
-  const source = bootstrap.source || bootstrap.state || {};
+  // Embedded hosts supply `bootstrap.source` ({ query, selection }); publications
+  // supply the richer `bootstrap.state` snapshot (query/datasetId/expansions/
+  // hidden) and no `source`. `normalizeModuleBootstrap` always materializes
+  // `source` as an object, so it can never be used to fall back to `state` -
+  // merge them, letting a publication's `state` win.
+  const source = { ...bootstrap.source, ...(bootstrap.state || {}) };
   const language = String(runtime.language || "eng").slice(0, 3).toLowerCase();
   return {
     containerId: "heurist-graph",
@@ -51,7 +56,13 @@ export function getHeuristGraphConfig() {
     searchRealm: runtime.searchRealm ?? runtime.search_realm ?? null,
     sourceId: runtime.source ?? runtime.sourceId ?? null,
     query: source.query ?? null,
-    rules: settings.rules ?? source.rules ?? [],
+    datasetId: toPositiveInt(source.datasetId),
+    datasetTitle: source.datasetTitle ?? null,
+    // Published views carry their effective expansion rules under
+    // `state.expansions.rules`; fall back to legacy `settings.rules`/`source.rules`.
+    rules: settings.rules ?? source.expansions?.rules ?? source.rules ?? [],
+    initialExpansions: source.expansions ?? null,
+    initialHidden: source.hidden ?? null,
     links: normalizeLinks(settings.links ?? source.links),
     fields: normalizeFields(settings.fields ?? source.fields),
     limits: normalizeLimits({
@@ -125,4 +136,9 @@ function normalizeLimits(value = {}) {
 function positiveLimit(value, fallback) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function toPositiveInt(value) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
 }
