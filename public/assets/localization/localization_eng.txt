@@ -147,3 +147,11 @@
 #Group by record type#Group by record type
 
 #Grid#Grid
+
+#Define expansions#Define expansions
+#Reset: Use saved expansion rules#Reset: Use saved expansion rules
+#Prune one level#Prune one level
+#Current expansion level#Current expansion level
+#Expansion depth for selected records#Expansion depth for selected records
+#Expansion depth for the base graph#Expansion depth for the base graph
+#Level#Level

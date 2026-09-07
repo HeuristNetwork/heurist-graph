@@ -148,7 +148,7 @@ test("GraphProvider rejects a response without a valid graph document", async ()
   );
 });
 
-test("GraphApplication loads and merges dynamic graph expansions", async () => {
+test("GraphApplication loads and merges explicit graph fragments", async () => {
   const calls = [];
   const graphs = [
     { records: [{ rec_ID: 1, rec_Title: "A" }], edges: [], paths: {} },
@@ -181,7 +181,7 @@ test("GraphApplication loads and merges dynamic graph expansions", async () => {
     host: { initialize: async () => {}, destroy: async () => {} },
   });
   await application.initialize({});
-  await application.expandNode(1);
+  await application.load({ query: { ids: [1] }, merge: true });
   assert.equal(calls.length, 2);
   assert.deepEqual(application.getState().recordIds, [1, 2]);
   assert.deepEqual(calls[0].links, "all");

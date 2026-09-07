@@ -31,7 +31,6 @@ export const CONFIGURATION_MODES = Object.freeze([
   "preferences",
   "website",
   "publish",
-  "graph",
 ]);
 
 /** Produce a versioned JSON-safe settings envelope tagged with heurist-graph's format string. */

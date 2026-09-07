@@ -26,135 +26,90 @@ import { GraphConfigurationDialog } from "../../src/ui/config/GraphConfiguration
 
 test("graph configuration defaults expose the requested controls", () => {
   const value = createGraphConfigurationDefaults();
-  assert.equal(value.options.ui.showColumnPicker, true);
-  assert.equal(value.options.nativeControls.export, true);
   assert.equal(value.options.datasets.allowAll, true);
   assert.equal(value.options.filters.allowAll, true);
   assert.equal(value.options.ui.language, "auto");
   assert.equal(value.options.ui.showSourceHeader, false);
-  assert.equal(value.config.defaults.fontSize, 14);
-  assert.equal(value.config.defaults.pageSize, 100);
-  assert.equal(value.config.defaults.engine, "datatables");
-  assert.equal(value.config.defaults.viewMode, "card");
-  assert.equal(value.config.defaults.cardTemplate, null);
-  assert.equal(value.config.defaults.viewTemplate, null);
-  assert.equal(value.options.nativeControls.viewMode, true);
-  assert.equal(value.options.nativeControls.selectionActions, true);
+  assert.equal(value.options.ui.showExpand, true);
+  assert.equal(value.options.nativeControls.zoom, true);
+  assert.equal(value.options.nativeControls.pan, true);
+  assert.equal(value.options.nativeControls.rearrange, true);
+  assert.equal(value.config.defaults.maxNodes, 5000);
+  assert.equal(value.config.defaults.maxEdges, 10000);
+  assert.equal(value.config.defaults.layoutMode, "automatic");
+  assert.equal(value.config.defaults.popupTemplate, null);
   assert.deepEqual(value.config.currentResults.filterBy, {
     mode: "none",
     widgetId: null,
   });
 });
 
-test("page size accepts only configured choices and publication restricts interaction", () => {
+test("node and edge limits accept only the configured choices", () => {
   assert.equal(
     normalizeGraphConfigurationSettings({
-      config: { defaults: { pageSize: 500 } },
-    }).config.defaults.pageSize,
-    500,
+      config: { defaults: { maxNodes: 10000 } },
+    }).config.defaults.maxNodes,
+    10000,
   );
   assert.equal(
     normalizeGraphConfigurationSettings({
-      config: { defaults: { pageSize: 5000 } },
-    }).config.defaults.pageSize,
+      config: { defaults: { maxNodes: 250000 } },
+    }).config.defaults.maxNodes,
     5000,
   );
   assert.equal(
     normalizeGraphConfigurationSettings({
-      config: { defaults: { pageSize: 25 } },
-    }).config.defaults.pageSize,
-    100,
+      config: { defaults: { maxEdges: 42 } },
+    }).config.defaults.maxEdges,
+    10000,
   );
-  assert.equal(
-    normalizeGraphConfigurationSettings({
-      config: { defaults: { pageSize: 20 } },
-    }).config.defaults.pageSize,
-    100,
-  );
+});
+
+test("publication mode locks interaction down to a read-only viewer", () => {
   const dialog = new GraphConfigurationDialog({
     mode: "publish",
     value: {
-      options: { interaction: { persistentSelectionEnabled: true } },
+      options: { interaction: { editEnabled: true, selectionEnabled: true } },
     },
   });
   const interaction = dialog.getValue().options.interaction;
   assert.equal(interaction.readonly, true);
   assert.equal(interaction.editEnabled, false);
   assert.equal(interaction.selectionEnabled, false);
-  assert.equal(interaction.persistentSelectionEnabled, false);
   assert.equal(interaction.popupEnabled, true);
-  assert.equal(interaction.adminInfoEnabled, false);
 });
 
-test("normalization allowlists values and clamps font size", () => {
+test("normalization drops unknown keys and allowlists dataset ids and filter mode", () => {
   const value = normalizeGraphConfigurationSettings({
     options: {
       accessToken: "discard",
       datasets: { allowAll: false, allowed: [2, "3", 0, 2] },
-      interaction: { persistentSelectionEnabled: true },
+      interaction: { editEnabled: false },
     },
     config: {
-      defaults: { fontSize: 50 },
       currentResults: { filterBy: { mode: "selection", widgetId: "w2" } },
     },
     callback() {},
   });
   assert.equal(value.options.accessToken, undefined);
+  assert.equal(value.options.interaction.persistentSelectionEnabled, undefined);
   assert.deepEqual(value.options.datasets.allowed, [2, 3]);
-  assert.equal(value.options.interaction.persistentSelectionEnabled, true);
-  assert.equal(value.config.defaults.fontSize, 30);
+  assert.equal(value.options.interaction.editEnabled, false);
   assert.deepEqual(value.config.currentResults.filterBy, {
     mode: "selection",
     widgetId: "w2",
   });
 });
 
-test("record-list engine and view mode are persisted and allowlisted", () => {
-  const value = normalizeGraphConfigurationSettings({
-    config: { defaults: { engine: "recordlist", viewMode: "table" } },
-  });
-  assert.equal(value.config.defaults.engine, "recordlist");
-  assert.equal(value.config.defaults.viewMode, "table");
-  const invalid = normalizeGraphConfigurationSettings({
-    config: { defaults: { engine: "unknown", viewMode: "tiles" } },
-  });
-  assert.equal(invalid.config.defaults.engine, "datatables");
-  assert.equal(invalid.config.defaults.viewMode, "card");
-});
-
-test("record-list card and extended templates are independent and migrate the legacy setting", () => {
-  const value = normalizeGraphConfigurationSettings({
-    config: {
-      defaults: {
-        cardTemplate: "compact.tpl",
-        viewTemplate: "full.tpl",
-      },
-    },
-  });
-  assert.equal(value.config.defaults.cardTemplate, "compact.tpl");
-  assert.equal(value.config.defaults.viewTemplate, "full.tpl");
-
+test("legacy popupTemplate migrates to the node popup template and 'standard' means built-in", () => {
   const migrated = normalizeGraphConfigurationSettings({
-    config: {
-      defaults: {
-        popupTemplate: "legacy.tpl",
-      },
-    },
+    config: { defaults: { popupTemplate: "legacy.tpl" } },
   });
-  assert.equal(migrated.config.defaults.cardTemplate, "legacy.tpl");
-  assert.equal(migrated.config.defaults.viewTemplate, "legacy.tpl");
-  // heurist-graph reads the same setting directly for its node popup.
   assert.equal(migrated.config.defaults.popupTemplate, "legacy.tpl");
 
   const standard = normalizeGraphConfigurationSettings({
-    config: {
-      defaults: {
-        popupTemplate: "standard",
-      },
-    },
+    config: { defaults: { popupTemplate: "standard" } },
   });
-  assert.equal(standard.config.defaults.cardTemplate, null);
-  assert.equal(standard.config.defaults.viewTemplate, null);
   assert.equal(standard.config.defaults.popupTemplate, null);
 });
 

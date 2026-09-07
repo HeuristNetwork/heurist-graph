@@ -115,9 +115,23 @@ re-labels the rendered edges (`engine.setEdgeLabels`) and
   assert). In standalone mode it loads the filter's query directly, since the
   graph endpoint doubles as the search.
 
-Individual interactive expansion rules are follow-up work: the client will send
-one selected `rule` with the origin IDs. The visual rules builder is deferred
-until the request, limits, path provenance, and selection contracts are stable.
+`GraphExpansions` stores canonical records/physical edges and membership sets
+per rule, branch, seed scope and depth. Composition begins with the immutable
+base and adds enabled contributions whose parents remain active. This protects
+overlaps and prevents disconnected exploration cycles from keeping themselves
+alive. Selected records each have their own seed scope, even for a multi-selection.
+
+The client sends one branch step at a time (`rule.query`, no nested `levels`)
+with its parent IDs. `/graph` returns `expansion.targetIds`; siblings receive the
+same parent frontier. Query execution enforces source types, target conditions,
+relationship constraints and record access. Server node/edge ceilings and a
+10,000 candidate-edge cap report truncation. The client also bounds the union.
+Pending responses are discarded after source changes or rule deactivation.
+
+Unchanged definitions retain membership caches when editing. Changed/deleted
+rules lose their old memberships. Labels are metadata, not execution identity.
+New queries discard caches; temporary definition overrides survive source
+switching during this application session. Nothing is persisted from the legend.
 
 ## Host integration
 

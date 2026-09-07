@@ -65,10 +65,6 @@ function normalizeOptions(source, defaults) {
         ui.showSourceHeader,
         defaults.ui.showSourceHeader,
       ),
-      showColumnPicker: boolean(
-        ui.showColumnPicker,
-        defaults.ui.showColumnPicker,
-      ),
       showOptions: boolean(ui.showOptions, defaults.ui.showOptions),
       showPublish: boolean(ui.showPublish, defaults.ui.showPublish),
       showExpand: boolean(ui.showExpand, defaults.ui.showExpand),
@@ -79,15 +75,6 @@ function normalizeOptions(source, defaults) {
       ),
     },
     nativeControls: {
-      pageSize: boolean(controls.pageSize, defaults.nativeControls.pageSize),
-      search: boolean(controls.search, defaults.nativeControls.search),
-      counter: boolean(controls.counter, defaults.nativeControls.counter),
-      export: boolean(controls.export, defaults.nativeControls.export),
-      viewMode: boolean(controls.viewMode, defaults.nativeControls.viewMode),
-      selectionActions: boolean(
-        controls.selectionActions,
-        defaults.nativeControls.selectionActions,
-      ),
       zoom: boolean(controls.zoom, defaults.nativeControls.zoom),
       pan: boolean(controls.pan, defaults.nativeControls.pan),
       rearrange: boolean(controls.rearrange, defaults.nativeControls.rearrange),
@@ -111,17 +98,9 @@ function normalizeOptions(source, defaults) {
         interaction.selectionEnabled,
         defaults.interaction.selectionEnabled,
       ),
-      persistentSelectionEnabled: boolean(
-        interaction.persistentSelectionEnabled,
-        defaults.interaction.persistentSelectionEnabled,
-      ),
       popupEnabled: boolean(
         interaction.popupEnabled,
         defaults.interaction.popupEnabled,
-      ),
-      adminInfoEnabled: boolean(
-        interaction.adminInfoEnabled,
-        defaults.interaction.adminInfoEnabled,
       ),
     },
   };
@@ -129,6 +108,8 @@ function normalizeOptions(source, defaults) {
 
 function normalizeConfig(source, defaults) {
   const configured = source.defaults || {};
+  // A legacy `popupTemplate` of "standard" (or empty) means the built-in
+  // vis-native popup; any other value is a Heurist report-template name.
   const legacyTemplate = nullableString(configured.popupTemplate);
   const migratedTemplate =
     legacyTemplate && legacyTemplate !== "standard" ? legacyTemplate : null;
@@ -136,31 +117,6 @@ function normalizeConfig(source, defaults) {
   const filterBy = current.filterBy || {};
   return {
     defaults: {
-      engine: enumValue(
-        configured.engine,
-        ["datatables", "recordlist"],
-        defaults.defaults.engine,
-      ),
-      viewMode: enumValue(
-        configured.viewMode,
-        ["table", "card", "row", "big"],
-        defaults.defaults.viewMode,
-      ),
-      pageSize: enumValue(
-        Number(configured.pageSize),
-        [50, 100, 500, 1000, 5000],
-        defaults.defaults.pageSize,
-      ),
-      fontSize: boundedNumber(
-        configured.fontSize,
-        defaults.defaults.fontSize,
-        8,
-        30,
-      ),
-      colorScheme: stringValue(
-        configured.colorScheme,
-        defaults.defaults.colorScheme,
-      ),
       emptyResultMessage: stringValue(
         configured.emptyResultMessage,
         defaults.defaults.emptyResultMessage,
@@ -189,20 +145,9 @@ function normalizeConfig(source, defaults) {
         1,
         5,
       ),
-      // Reuses the same raw `popupTemplate` setting the legacy migration
-      // above reads: heurist-graph's own popup uses it directly (a Heurist
-      // report template name, or null for the built-in vis-native popup).
+      // heurist-graph's node popup reads this directly: a Heurist report
+      // template name, or null for the built-in vis-native popup.
       popupTemplate: migratedTemplate,
-      nodeStyle: nullableString(configured.nodeStyle),
-      edgeStyle: nullableString(configured.edgeStyle),
-      cardTemplate:
-        nullableString(configured.cardTemplate) ||
-        migratedTemplate ||
-        defaults.defaults.cardTemplate,
-      viewTemplate:
-        nullableString(configured.viewTemplate) ||
-        migratedTemplate ||
-        defaults.defaults.viewTemplate,
     },
     currentResults: {
       enabled: boolean(current.enabled, defaults.currentResults.enabled),

@@ -114,17 +114,8 @@ export class GraphConfigurationDialog {
 
   buildSections() {
     this.content.append(
-      this.section("Interface", (body) => this.mode === "graph" ? this.buildGraphInterface(body) : this.buildInterface(body), true),
+      this.section("Interface", (body) => this.buildInterface(body), true),
     );
-    if (this.mode === "graph") {
-      this.content.append(
-        this.section("Default settings", (body) => this.buildGraphDefaults(body), true),
-        this.section("Filtered Result", (body) => this.buildCurrentResults(body), true),
-        this.section("Datasets and Filters", (body) => this.buildDatasetsAndFilters(body)),
-        this.section("Interaction", (body) => this.buildGraphInteraction(body)),
-      );
-      return;
-    }
     if (this.mode === "publish") {
       this.content.append(
         this.section(
@@ -153,32 +144,46 @@ export class GraphConfigurationDialog {
     );
   }
 
-  buildGraphInterface(body) {
+  buildInterface(body) {
     body.append(
       this.check("options.ui.showCurrentResults", "Filtered Result"),
       this.check("options.ui.showDatasets", "Datasets"),
       this.check("options.ui.showFilters", "Filters"),
-      this.check("options.ui.showSourceHeader", "Header"),
+    );
+    body.append(this.separator());
+    const sourceHeader = this.check("options.ui.showSourceHeader", "Header");
+    sourceHeader.title = $HR("source_header_hint");
+    body.append(
+      this.check("options.ui.initiallyExpanded", "Initially expanded"),
+      sourceHeader,
       this.check("options.ui.showExpand", "Expand graph"),
       this.check("options.ui.showOptions", "Options"),
       this.check("options.ui.showPublish", "Publish"),
-      this.separator(),
-      this.check("options.ui.initiallyExpanded", "Initially expanded"),
     );
     const controls = el("fieldset", "heurist-data-config-subgroup");
     const legend = el("legend", "h-i18n");
     legend.textContent = "Native controls";
-    controls.append(legend,
+    controls.append(
+      legend,
       this.check("options.nativeControls.zoom", "Zoom"),
       this.check("options.nativeControls.pan", "Pan"),
       this.check("options.nativeControls.rearrange", "Rearrange"),
     );
     body.append(controls);
+    if (this.mode === "publish" || this.mode === "website") {
+      this.select(body, "options.ui.language", "Language", [
+        ["auto", "Auto"],
+        ["eng", "English"],
+        ["fre", "French"],
+        ["ger", "German"],
+        ["por", "Portuguese"],
+      ]);
+    }
   }
 
-  buildGraphDefaults(body) {
-    this.select(body, "config.defaults.maxNodes", "Nodes limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
-    this.select(body, "config.defaults.maxEdges", "Edges limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"], [25000, "25000"]]);
+  buildDefaults(body) {
+    this.select(body, "config.defaults.maxNodes", "Nodes limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"]]);
+    this.select(body, "config.defaults.maxEdges", "Edges limit", [[1000, "1000"], [5000, "5000"], [10000, "10000"]]);
     this.select(body, "config.defaults.layoutMode", "Layout", [
       ["forceAtlas2", "Automatic (ForceAtlas2)"],
       ["automatic", "Gravity (Barnes–Hut)"],
@@ -210,107 +215,12 @@ export class GraphConfigurationDialog {
 
   }
 
-  buildGraphInteraction(body) {
+  buildInteraction(body) {
     body.append(
       this.check("options.interaction.editEnabled", "Enable edit"),
       this.check("options.interaction.selectionEnabled", "Enable selection"),
       this.check("options.interaction.popupEnabled", "Enable popups"),
     );
-  }
-
-  buildInterface(body) {
-    body.append(
-      this.check("options.ui.showCurrentResults", "Filtered Result"),
-      this.check("options.ui.showDatasets", "Datasets"),
-      this.check("options.ui.showFilters", "Filters"),
-    );
-    body.append(this.separator());
-    const sourceHeader = this.check("options.ui.showSourceHeader", "Header");
-    sourceHeader.title = $HR("source_header_hint");
-    body.append(
-      this.check("options.ui.initiallyExpanded", "Initially expanded"),
-      sourceHeader,
-      this.check(
-        "options.ui.showColumnPicker",
-        "Columns picker (for current active dataset)",
-      ),
-      this.check("options.ui.showOptions", "Options"),
-      this.check("options.ui.showPublish", "Publish"),
-    );
-    const controls = el("fieldset", "heurist-data-config-subgroup");
-    const legend = el("legend", "h-i18n");
-    legend.textContent = "Native controls";
-    const exportControl = this.check(
-      "options.nativeControls.export",
-      "Export (CSV, Excel, PDF)",
-    );
-    const exportWarning = el(
-      "div",
-      "heurist-data-config-export-warning h-i18n",
-    );
-    exportWarning.textContent = "Export_warning";
-    controls.append(
-      legend,
-      this.check("options.nativeControls.pageSize", "Page size"),
-      this.check("options.nativeControls.search", "Search"),
-      this.check("options.nativeControls.counter", "Counter"),
-      exportControl,
-      this.check("options.nativeControls.viewMode", "View mode"),
-      this.check(
-        "options.nativeControls.selectionActions",
-        "Selection actions",
-      ),
-      exportWarning,
-    );
-    body.append(controls);
-    if (this.mode === "publish" || this.mode === "website") {
-      this.select(body, "options.ui.language", "Language", [
-        ["auto", "Auto"],
-        ["eng", "English"],
-        ["fre", "French"],
-        ["ger", "German"],
-        ["por", "Portuguese"],
-      ]);
-    }
-  }
-
-  buildDefaults(body) {
-    this.select(body, "config.defaults.engine", "Engine", [
-      ["datatables", "Data table"],
-      ["recordlist", "Record list"],
-    ]);
-    this.select(body, "config.defaults.viewMode", "Record list view", [
-      ["table", "Table"],
-      ["card", "Cards"],
-      ["row", "Rows"],
-      ["big", "Extended"],
-    ]);
-    this.select(body, "config.defaults.pageSize", "Page size", [
-      [50, "50"],
-      [100, "100"],
-      [500, "500"],
-      [1000, "1000"],
-      [5000, "5000"],
-    ]);
-    this.number(body, "config.defaults.fontSize", "Font size", 8, 30);
-    this.textarea(
-      body,
-      "config.defaults.emptyResultMessage",
-      "Empty result message",
-      3,
-    );
-    this.select(body, "config.defaults.cardTemplate", "Card and row template", [
-      ["", "Built-in renderer"],
-    ]);
-    this.select(
-      body,
-      "config.defaults.viewTemplate",
-      "Extended view template",
-      [["", "Standard record view"]],
-    );
-    this.fields
-      .get("config.defaults.engine")
-      .control.addEventListener("change", () => this.applyDependencies());
   }
 
   buildCurrentResults(body) {
@@ -387,19 +297,6 @@ export class GraphConfigurationDialog {
     this.fields
       .get("options.filters.allowAll")
       .control.addEventListener("change", () => this.applyDependencies());
-  }
-
-  buildInteraction(body) {
-    body.append(
-      this.check("options.interaction.editEnabled", "Enable edit"),
-      this.check("options.interaction.selectionEnabled", "Enable selection"),
-      this.check(
-        "options.interaction.persistentSelectionEnabled",
-        "Collection / Persistent selection",
-      ),
-      this.check("options.interaction.popupEnabled", "Enable popups"),
-      this.check("options.interaction.adminInfoEnabled", "Admin info"),
-    );
   }
 
   buildPublication(body) {
@@ -598,22 +495,15 @@ export class GraphConfigurationDialog {
 
   async loadTemplateOptions() {
     if (!this.reportTemplateProvider) return;
+    const control = this.fields.get("config.defaults.popupTemplate")?.control;
+    if (!control) return;
     const items = normalizeItems(await callList(this.reportTemplateProvider));
-    const controls = [
-      ["config.defaults.cardTemplate", "Built-in renderer"],
-      ["config.defaults.viewTemplate", "Standard record view"],
-      ["config.defaults.popupTemplate", "Built-in renderer (vis native)"],
-    ];
-    controls.forEach(([path, defaultLabel]) => {
-      const control = this.fields.get(path)?.control;
-      if (!control) return;
-      const current = getPath(this.value, path);
-      fillSelect(control, [
-        { value: "", label: defaultLabel, i18n: true },
-        ...items,
-      ]);
-      control.value = current || "";
-    });
+    const current = getPath(this.value, "config.defaults.popupTemplate");
+    fillSelect(control, [
+      { value: "", label: "Built-in renderer (vis native)", i18n: true },
+      ...items,
+    ]);
+    control.value = current || "";
   }
   async loadWidgetOptions() {
     if (this.mode !== "website" || !this.widgetListProvider) return;
@@ -662,37 +552,11 @@ export class GraphConfigurationDialog {
       "config.currentResults.filterBy.widgetId",
     )?.control;
     if (widget) widget.disabled = !filterMode || filterMode.value === "none";
-    const engine = this.fields.get("config.defaults.engine")?.control;
-    const engineName =
-      engine?.value || getPath(this.value, "config.defaults.engine");
-    const viewMode = this.fields.get("config.defaults.viewMode")?.row;
-    if (viewMode) viewMode.hidden = engineName !== "recordlist";
-    for (const path of [
-      "config.defaults.cardTemplate",
-      "config.defaults.viewTemplate",
-    ]) {
-      const row = this.fields.get(path)?.row;
-      if (row) row.hidden = engineName !== "recordlist";
-    }
-    const viewModeControl = this.fields.get(
-      "options.nativeControls.viewMode",
-    )?.row;
-    if (viewModeControl) viewModeControl.hidden = engineName !== "recordlist";
-    const selectionActions = this.fields.get(
-      "options.nativeControls.selectionActions",
-    )?.row;
-    if (selectionActions) selectionActions.hidden = engineName !== "recordlist";
     if (this.mode === "publish") {
-      for (const path of [
-        "options.ui.showColumnPicker",
-        "options.ui.showPublish",
-        "options.nativeControls.selectionActions",
-      ]) {
-        const control = this.fields.get(path)?.control;
-        if (control) {
-          control.checked = false;
-          control.disabled = true;
-        }
+      const control = this.fields.get("options.ui.showPublish")?.control;
+      if (control) {
+        control.checked = false;
+        control.disabled = true;
       }
     }
   }
@@ -756,25 +620,16 @@ function prepareMode(value, mode) {
   if (mode === "publish") {
     const copy = clone(value);
     copy.options.ui.showOptions = false;
-    copy.options.ui.showColumnPicker = false;
     copy.options.ui.showPublish = false;
-    copy.options.nativeControls.selectionActions = false;
     copy.options.interaction.readonly = true;
     copy.options.interaction.editEnabled = false;
     copy.options.interaction.selectionEnabled = false;
-    copy.options.interaction.persistentSelectionEnabled = false;
     copy.options.interaction.popupEnabled = true;
-    copy.options.interaction.adminInfoEnabled = false;
     return copy;
   }
   if (mode === "preferences") {
     const copy = clone(value);
     copy.options.ui.showOptions = true;
-    return copy;
-  }
-  if (mode === "graph") {
-    const copy = clone(value);
-    copy.options.ui.showPublish = true;
     return copy;
   }
   const copy = clone(value);

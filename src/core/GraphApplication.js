@@ -12,6 +12,7 @@
  */
 
 import { GraphDocument } from "./GraphDocument.js";
+import { GraphExpansions } from './GraphExpansions.js';
 
 export class GraphApplication extends EventTarget {
   constructor({
@@ -32,6 +33,9 @@ export class GraphApplication extends EventTarget {
     this.recordContentProvider = recordContentProvider;
     this.vocabularyProvider = vocabularyProvider;
     this.graph = null;
+    this.ruleOverrides = new Map();
+    this.expansionQueue = Promise.resolve();
+    this.expansions = null;
     // Human labels for edges, resolved from the API after every load:
     // `fields` keyed by detail-type dty_ID, `relationTypes` by relation-type
     // trm_ID. `relationTypeTrees` keeps each relation type's descendant tree
@@ -68,7 +72,7 @@ export class GraphApplication extends EventTarget {
       container,
       options: this.config.engineOptions,
       onSelectionChange: (ids) => this.setSelection(ids, { fromEngine: true }),
-      onNodeActivate: (id) => this.expandNode(id),
+      onNodeActivate: (id) => this.expandNode(id).catch(error => this.dispatch('heurist-graph-error', { error, operation:'expansion' })),
       onPopupContentRequest: (request) => this.requestPopupContent(request),
     });
     if (this.config.query != null && this.config.query !== "") {
@@ -168,6 +172,7 @@ export class GraphApplication extends EventTarget {
       this.config.datasetTitle = null;
       this.config.query = null;
       this.graph = new GraphDocument();
+      this.expansions = null;
       this.dataset = null;
       this.response = null;
       await this.engine.setGraph(this.graph);
@@ -221,6 +226,17 @@ export class GraphApplication extends EventTarget {
     }
     this.graph =
       merge && this.graph ? this.graph.merge(result.graph) : result.graph;
+    if (!merge) {
+      this.expansions = new GraphExpansions(this.graph, this.getExpansionRules(), this.config.limits);
+      const rules = this.getExpansionRules();
+      if (rules.some(r => !r.name && r.query) && this.host?.describeRules) {
+        try {
+          const described = await this.host.describeRules(rules);
+          if (generation !== this.generation) throw abortError('Graph changed');
+          this.expansions.setRules(described);
+        } catch (error) { if (error.name === 'AbortError') throw error; }
+      }
+    }
     this.config.query = normalizedQuery;
     const visible = this.#filterGraph(this.graph);
     await (merge
@@ -272,8 +288,6 @@ export class GraphApplication extends EventTarget {
           : { names: new Map(), trees: {} },
         this.vocabularyProvider.getRecordTypeNames?.(this.graph.records.map(r => r.recordTypeId), { signal }) || new Map(),
       ]);
-
-console.log("Vocabulary resolved", { fields, relations, recordTypes });
 
       if (generation !== undefined && generation !== this.generation) return;
       this.edgeLabels = { fields, relationTypes: relations.names };
@@ -437,8 +451,123 @@ console.log("Vocabulary resolved", { fields, relations, recordTypes });
   async expandNode(recordId) {
     const id = Number(recordId);
     if (!Number.isInteger(id) || id < 1) return false;
-    await this.load({ query: { ids: [id] }, merge: true });
+    await this.advanceExpansion([id]);
     return true;
+  }
+
+  getExpansionRules() {
+    const value = this.ruleOverrides.get(this.config.datasetId ? `dataset:${this.config.datasetId}` : 'current')
+      ?? this.dataset?.rules ?? this.config.rules ?? [];
+    return typeof value === 'string' ? JSON.parse(value || '[]') : value;
+  }
+
+  async defineExpansions() {
+    const generation = this.generation;
+    const result = await this.host.editRules(structuredClone(this.getExpansionRules()));
+    if (result == null) return;
+    if (generation !== this.generation) throw new Error('The active graph changed. Reopen Define expansions.');
+    await this.setExpansionRules(result.rules);
+  }
+
+  async setExpansionRules(rules) {
+    if (!Array.isArray(rules)) throw new TypeError('Expansion rules must be an array');
+    this.ruleOverrides.set(this.config.datasetId ? `dataset:${this.config.datasetId}` : 'current', structuredClone(rules));
+    this.expansions?.setRules(rules);
+    await this.renderExpansions();
+  }
+
+  async resetExpansionRules() {
+    this.ruleOverrides.delete(this.config.datasetId ? `dataset:${this.config.datasetId}` : 'current');
+    this.expansions?.setRules(this.getExpansionRules());
+    await this.renderExpansions();
+  }
+
+  getExpansionState(seedIds = null) {
+    const state = this.expansions;
+    const scopes = state ? (seedIds?.length ? seedIds.map(id => state.scope([id])) : [state.scope()]) : [];
+    const maxDepth = Math.max(0, ...(state?.rules || []).filter(r => r.enabled).map(r => r.maxDepth));
+    return { depth: scopes.length ? Math.min(maxDepth, ...scopes.map(s => s.depth)) : 0,
+      maxDepth,
+      busy: !!this.expansionBusy };
+  }
+
+  async setRuleEnabled(id, enabled) {
+    const state = this.expansions;
+    const rule = state?.rules.find(r => r.id === id);
+    if (!rule) return;
+    rule.enabled = enabled;
+    if (!enabled) return this.renderExpansions();
+    const scope = state.scope();
+    const previousDepth = scope.depth;
+    scope.depth = Math.max(scope.depth, rule.maxDepth);
+    try { await this.runExpansion(state, rule, scope); }
+    catch (error) {
+      rule.enabled = false; scope.depth = previousDepth;
+      if (state === this.expansions) await this.renderExpansions();
+      throw error;
+    }
+  }
+
+  async setExpansionDepth(depth, seedIds = null) {
+    const state = this.expansions;
+    if (!state) return;
+    // Individual seed memberships keep a multi-selection's surviving branches
+    // active when another selected seed loses its last contributing source.
+    if (seedIds?.length > 1) {
+      for (const id of seedIds) {
+        if (state !== this.expansions) return;
+        await this.setExpansionDepth(depth, [id]);
+      }
+      return;
+    }
+    const scope = state.scope(seedIds);
+    if (!scope.seeds.every(id => this.graph.recordIds.includes(id))) return;
+    const previous = scope.depth;
+    scope.depth = Math.max(0, Math.min(Number(depth) || 0, this.getExpansionState(seedIds).maxDepth));
+    try {
+      for (const rule of state.rules.filter(r => r.enabled)) await this.runExpansion(state, rule, scope);
+      if (state === this.expansions) await this.renderExpansions();
+    } catch (error) {
+      scope.depth = previous;
+      if (state === this.expansions) await this.renderExpansions();
+      throw error;
+    }
+  }
+
+  advanceExpansion(seedIds = null) { return this.setExpansionDepth(this.getExpansionState(seedIds).depth + 1, seedIds); }
+  pruneExpansion(seedIds = null) { return this.setExpansionDepth(this.getExpansionState(seedIds).depth - 1, seedIds); }
+
+  runExpansion(state, rule, scope) {
+    const valid = () => state === this.expansions && state.rules.includes(rule) && rule.enabled;
+    const generation = this.generation;
+    const run = async () => {
+      if (!valid() || generation !== this.generation) return;
+      this.expansionBusy = true;
+      this.dispatch('heurist-graph-expansions-changed', {});
+      try {
+        await state.ensure(rule, scope, scope.depth, (seeds, step) => this.provider.load({
+          query: { ids: seeds }, rule: step, limit: seeds.length,
+          limits: this.config.limits, signal: this.abortController?.signal,
+        }), () => valid() && generation === this.generation);
+        if (valid() && generation === this.generation) await this.renderExpansions();
+      } finally {
+        this.expansionBusy = false;
+        this.dispatch('heurist-graph-expansions-changed', {});
+      }
+    };
+    const pending = this.expansionQueue.then(run);
+    this.expansionQueue = pending.catch(() => {});
+    return pending;
+  }
+
+  async renderExpansions() {
+    if (!this.expansions) return;
+    this.graph = this.expansions.compose();
+    const visible = this.#filterGraph(this.graph);
+    await (this.engine.syncGraph ? this.engine.syncGraph(visible) : this.engine.setGraph(visible));
+    await this.engine.setSelection(this.selection.filter(id => this.graph.recordIds.includes(id)));
+    await this.#resolveVocabulary(this.generation);
+    this.dispatch('heurist-graph-expansions-changed', {});
   }
 
   /**
@@ -508,7 +637,8 @@ console.log("Vocabulary resolved", { fields, relations, recordTypes });
       total: this.response?.total ?? null,
       offset: this.response?.offset || 0,
       limits: this.graph?.limits || {},
-      rules: this.dataset?.rules ?? this.config.rules ?? [],
+      rules: this.expansions ? this.expansions.rules.map(r => ({ ...r.definition, id:r.id, enabled:r.enabled })) : this.getExpansionRules(),
+      rulesOverridden: this.ruleOverrides.has(this.config.datasetId ? `dataset:${this.config.datasetId}` : 'current'),
       recordTypes: [...recordTypes.entries()].map(([recordTypeId, count]) => ({
         recordTypeId,
         color: this.engine.getNodeColor?.(recordTypeId),
@@ -561,7 +691,8 @@ console.log("Vocabulary resolved", { fields, relations, recordTypes });
   }
 
   async #renderVisible() {
-    await this.engine.setGraph(this.#filterGraph(this.graph || new GraphDocument()));
+    const graph = this.#filterGraph(this.graph || new GraphDocument());
+    await (this.engine.syncGraph ? this.engine.syncGraph(graph) : this.engine.setGraph(graph));
     await this.engine.setSelection(this.selection);
     this.dispatch("heurist-graph-visibility-changed", {});
   }

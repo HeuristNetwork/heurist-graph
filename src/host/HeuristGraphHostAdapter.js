@@ -20,6 +20,13 @@ export class HeuristGraphHostAdapter extends HostAdapter {
 
   async initialize() {}
 
+  editRules(value) {
+    if (!this.bridge?.editRules) throw new Error('Expansion rule editor is not available in this host.');
+    return this.bridge.editRules(value);
+  }
+
+  describeRules(rules) { return this.bridge?.describeRules?.(rules) || rules; }
+
   getCapabilities() {
     return {
       editing: this.supportsEditing(),

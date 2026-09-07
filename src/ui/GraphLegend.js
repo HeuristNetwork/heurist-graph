@@ -52,10 +52,17 @@ export class GraphLegend {
     for (const tree of forest) edgesSection.append(this.term(relationshipGroups, tree));
     if (!model.links.length) edgesSection.append(element('p', $HR('No links')));
     const rulesHeading = element('h4', $HR('Expansion Rules'));
-    if (editEnabled) rulesHeading.append(this.action('Add new rule', 'fa-circle-plus', this.onRule));
+    if (editEnabled) {
+      const actions = element('span', null, 'heurist-graph-legend-rule-actions');
+      if (this.api.getState?.().datasetId) actions.append(this.action('Reset: Use saved expansion rules', 'fa-rotate-left', () => this.api.resetExpansionRules()));
+      actions.append(this.action('Define expansions', 'fa-pen', this.onRule));
+      rulesHeading.append(actions);
+    }
     this.container.append(rulesHeading);
     for (const [index, rule] of (model.rules || []).entries()) {
-      const row = element('div', rule.name || rule.title || `${$HR('Rule')} ${index + 1}`, 'heurist-graph-legend-rule');
+      const row = this.checkbox(rule.name || rule.title || `${$HR('Rule')} ${index + 1}`, null,
+        !!rule.enabled, false, `rule:${rule.id}`, value => this.api.setRuleEnabled(rule.id, value));
+      row.querySelector('input').disabled = !!this.api.getExpansionState?.().busy && !rule.enabled;
       row.title = rule.description || '';
       this.container.append(row);
     }
@@ -115,7 +122,7 @@ export class GraphLegend {
     input.dataset.legendKey = key;
     input.addEventListener('click', event => event.stopPropagation());
     input.addEventListener('change', () => this.run(() => handler(input.checked)));
-    row.append(input, element('span', `${label} (${count})`));
+    row.append(input, element('span', count == null ? label : `${label} (${count})`));
     return row;
   }
 

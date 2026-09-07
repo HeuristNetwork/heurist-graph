@@ -34,6 +34,7 @@ export class GraphProvider {
    */
   async load({
     query,
+    rule,
     links,
     limits,
     limit,
@@ -44,6 +45,7 @@ export class GraphProvider {
       throw new TypeError("A graph query is required");
     limit = limit ?? normalizeLimits(limits)?.maxNodes ?? 1000;
     const body = { query, limit, offset };
+    if (rule != null) body.rule = rule;
     const normalizedLinks = normalizeLinks(links);
     if (normalizedLinks !== undefined) body.links = normalizedLinks;
     const normalizedLimits = normalizeLimits(limits);
@@ -69,6 +71,7 @@ export class GraphProvider {
       offset: Number(payload.offset) || offset,
       limit: Number(payload.limit) || limit,
       graph: new GraphDocument(payload),
+      expansion: payload.expansion || null,
     };
   }
 }

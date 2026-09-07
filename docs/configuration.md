@@ -53,8 +53,9 @@ optional `limits` budget. The API response is a renderer-neutral document with
 `links` defaults to `"all"` (discover every edge whose two endpoints are both in
 the result set) for the initial graph and for a Saved Filter. A Dataset with an
 explicit compact link list sends that array instead. Client-side dynamic
-expansion sends an IDs query with no link discovery and merges the returned
-records and edges into the current graph by stable ID.
+expansion sends an IDs query plus one `rule.query` step, without initial-link
+discovery. The client keeps separate memberships for each rule/branch/depth and
+merges only active contributions into the visible graph.
 
 ## Engine options
 
@@ -180,7 +181,10 @@ the current graph instead of raising a "Node not found" error.
 
 ## Current scope
 
-The first implementation is configuration-driven. A visual expansion-rules
-builder, graph publication settings, graph export, path-aware styling, and
-server-enforced node/edge/depth limits remain follow-up work. They should be
-added without coupling the API or application layer to `vis-network`.
+The legend opens the host RuleSet Builder with **Define expansions**. Each
+top-level rule is a checkbox; checking it loads its complete tree, subject to
+limits. Prune / Level / Expand navigate its depths without repeating the whole
+tree from the frontier. With a selection the controls act on those records;
+without a selection they act on the base scope. Re-enabling uses cached results.
+Dataset record forms save definitions in `DT_EXPANSION_RULES`; legend definitions
+are session overrides and can be reset to their saved values.

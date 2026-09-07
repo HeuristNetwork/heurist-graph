@@ -50,12 +50,19 @@ tagged `edges`, the `links`/`paths` namespaces, and an effective `limits`
 report. The `VisNetworkAdapter` converts `graph.records` and `graph.edges` into
 the vis-network node and edge collections.
 
-Double-clicking a node requests an IDs-query graph with no link discovery and
-merges the returned records and edges by stable IDs.
+Expansion checkboxes activate complete rule trees independently against the
+loaded base records. Prune / Level / Expand navigate tree depth; selected records
+have independent exploration scopes. Double-click advances one selected node.
+Each request sends one branch step as `rule` and its parent IDs as `query.ids`.
+The response includes `expansion.targetIds` for scheduling the next depth.
 
-Individual interactive expansion rules and their visual builder are follow-up
-work, layered on the same endpoint once the request and selection contracts are
-adopted by the host.
+The base and every branch retain separate node/edge memberships. Disabling or
+pruning removes only contributions with no other active owner; cached results
+can be restored without another request. New source loads invalidate caches.
+The host's existing RuleSet Builder edits all definitions through the new
+`HEURIST4.ui.showRulesBuilderDialog` bridge. Generated `name` and `description`
+are stored beside each rule's query. Dataset forms persist `DT_EXPANSION_RULES`;
+legend edits are temporary overrides scoped to Current Results or a Dataset ID.
 
 ## Host integration
 

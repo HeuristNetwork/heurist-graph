@@ -70,12 +70,24 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
   }
 
   async setGraph(graph) {
+    this.savedPositions = {};
     this.nodes.clear();
     this.edges.clear();
     return this.mergeGraph(graph);
   }
 
+  /** Reconcile membership without resetting the viewport or surviving nodes. */
+  async syncGraph(graph) {
+    this.savedPositions = { ...this.savedPositions, ...this.network.getPositions() };
+    const nodes = new Set(graph.recordIds), edges = new Set(graph.edges.map(e => e.id));
+    this.edges.remove(this.edges.getIds().filter(id => !edges.has(id)));
+    this.nodes.remove(this.nodes.getIds().filter(id => !nodes.has(id)));
+    await this.mergeGraph(graph);
+    this.nodes.update(graph.recordIds.filter(id => this.savedPositions[id]).map(id => ({ id, ...this.savedPositions[id] })));
+  }
+
   async mergeGraph(graph) {
+    this.syncNodeGroups(graph.records);
     const maxLength =
       Number(this.options?.labelMaxLength) || DEFAULT_LABEL_MAX_LENGTH;
     const scalingEnabled = this.options?.scaling !== false;
@@ -95,7 +107,7 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
         const node = {
           id: record.id,
           label: this.options?.showNodeLabels === false ? "" : truncateLabel(title, maxLength),
-          group: record.recordTypeId || "unknown",
+          group: String(record.recordTypeId || "unknown"),
           color: this.getNodeColor(record.recordTypeId),
           // Full (tag-stripped) text: vis-network's built-in hover tooltip.
           title,
@@ -159,6 +171,24 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
     return typeof color === 'string' ? color : color?.background || palette[Math.abs(Number(recordTypeId) || 0) % palette.length];
   }
 
+  /** Pin group colors too: position-only and edge-triggered updates in
+   * vis-network can reapply group defaults even when nodes have local colors. */
+  syncNodeGroups(records) {
+    this.nodeGroupStyles ||= new Map();
+    const groups = {};
+    for (const record of records) {
+      const key = record.recordTypeId || 'unknown';
+      const configured = this.options?.groups?.[key] || {};
+      const color = configured.color ?? this.options?.nodes?.color ?? this.getNodeColor(record.recordTypeId);
+      const style = { ...configured, color };
+      const signature = JSON.stringify(style);
+      if (this.nodeGroupStyles.get(key) === signature) continue;
+      this.nodeGroupStyles.set(key, signature);
+      groups[key] = style;
+    }
+    if (Object.keys(groups).length) this.network?.setOptions({ groups });
+  }
+
   /** Name for an edge: relation type first, then detail type, then id. */
   #edgeLabel(edge) {
     return this.options?.showEdgeLabels === true ? this.#edgeName(edge) : "";
@@ -180,6 +210,8 @@ export class VisNetworkAdapter extends GraphEngineAdapter {
   async applyConfiguration(options = {}) {
     this.options = { ...this.options, ...options };
     this.network?.setOptions(networkOptions(this.options));
+    this.nodeGroupStyles?.clear();
+    this.syncNodeGroups(this.nodes?.get() || []);
     this.navControls?.setVisibility(this.options.nativeControls);
     this.rearrange();
   }

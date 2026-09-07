@@ -148,3 +148,10 @@
 #Group by record type#Regrouper par type de fiche
 
 #Grid#Grille
+#Define expansions#Définir les expansions
+#Reset: Use saved expansion rules#Réinitialiser : utiliser les règles d’expansion enregistrées
+#Prune one level#Retirer un niveau
+#Current expansion level#Niveau d’expansion actuel
+#Expansion depth for selected records#Profondeur d’expansion des fiches sélectionnées
+#Expansion depth for the base graph#Profondeur d’expansion du graphe initial
+#Level#Niveau

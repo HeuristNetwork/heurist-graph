@@ -17,19 +17,12 @@ export const HEURIST_GRAPH_OPTIONS_DEFAULTS = Object.freeze({
     showFilters: true,
     initiallyExpanded: true,
     showSourceHeader: false,
-    showColumnPicker: true,
     showOptions: true,
     showPublish: true,
     showExpand: true,
     language: "auto",
   }),
   nativeControls: Object.freeze({
-    pageSize: true,
-    search: true,
-    counter: true,
-    export: true,
-    viewMode: true,
-    selectionActions: true,
     zoom: true,
     pan: true,
     rearrange: true,
@@ -44,23 +37,16 @@ export const HEURIST_GRAPH_OPTIONS_DEFAULTS = Object.freeze({
     readonly: false,
     editEnabled: true,
     selectionEnabled: true,
-    persistentSelectionEnabled: false,
     popupEnabled: true,
-    adminInfoEnabled: false,
   }),
 });
 
 export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
+  // heurist-graph (vis-network) appearance and limit defaults.
   defaults: Object.freeze({
-    engine: "datatables",
-    viewMode: "card",
-    pageSize: 100,
-    fontSize: 14,
-    colorScheme: "default",
     emptyResultMessage: "No records",
     maxNodes: 5000,
     maxEdges: 10000,
-    // heurist-graph (vis-network) appearance defaults.
     gravity: "normal",
     layoutMode: "automatic",
     movement: "once",
@@ -70,10 +56,6 @@ export const HEURIST_GRAPH_CONFIG_DEFAULTS = Object.freeze({
     labelLength: 40,
     popupDelay: 1,
     popupTemplate: null,
-    nodeStyle: null,
-    edgeStyle: null,
-    cardTemplate: null,
-    viewTemplate: null,
   }),
   currentResults: Object.freeze({
     enabled: true,

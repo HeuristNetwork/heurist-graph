@@ -32,12 +32,19 @@ export class GraphControlPanel {
 
     this.actions = document.createElement("span");
     this.actions.className = "heurist-module-panel-actions";
-    this.expandButton = iconButton("fa-solid fa-diagram-project", "Expand graph", () => this.expandGraph());
+    this.expandButton = iconButton("fa-solid fa-angle-right", "Expand graph", () => this.expandGraph());
+    this.pruneButton = iconButton('fa-solid fa-angle-left', 'Prune one level', () => this.api.pruneExpansion(this.expansionSeeds()).catch(error => this.reportError(error, 'expansion')));
+    this.levelSelector = document.createElement('select');
+    this.levelSelector.setAttribute('aria-label', $HR('Current expansion level'));
+    this.levelSelector.style.border = 'none';
+    this.levelSelector.addEventListener('change', () => {
+      void this.api.setExpansionDepth(this.levelSelector.value, this.expansionSeeds()).catch(error => this.reportError(error, 'expansion'));
+    });
     this.exportButton = iconButton("fa-solid fa-file-export", "Export Gephi", () => this.api.exportGephi?.());
     this.helpButton = iconButton("fa-solid fa-circle-question", "Help", () => this.openHelp());
     this.optionsButton = iconButton("fa-solid fa-gear", "Options", () => this.api.openPreferencesDialog?.());
     this.publishButton = iconButton("fa-solid fa-share-nodes", "Publish", () => this.api.openPublishDialog?.());
-    this.actions.append(this.expandButton, this.exportButton, this.helpButton, this.optionsButton, this.publishButton);
+    this.actions.append(this.pruneButton, this.levelSelector, this.expandButton, this.exportButton, this.helpButton, this.optionsButton, this.publishButton);
     header.append(this.actions);
 
     const toggle = iconButton("fa-solid fa-layer-group", "Show or hide graph controls", () => this.toggleFullyCollapsed());
@@ -64,7 +71,7 @@ export class GraphControlPanel {
 
     this.legend = new GraphLegend({ api: this.api, container: this.legendSection,
       onEdit: () => this.editDataset(), onLinks: () => this.editLegend('links'),
-      onRule: () => this.editLegend('rule'), onError: (error, operation) => this.reportError(error, operation) });
+      onRule: () => this.api.defineExpansions(), onError: (error, operation) => this.reportError(error, operation) });
     this.element.append(header, body);
     (this.container.parentElement || document.body).append(this.element);
     this.sourceHeader = document.createElement("div");
@@ -75,6 +82,8 @@ export class GraphControlPanel {
     this.bind("heurist-graph-loaded", () => { void this.render().catch(error => this.reportError(error)); });
     this.bind("heurist-graph-vocabulary-changed", () => this.renderLegend());
     this.bind("heurist-graph-visibility-changed", () => this.renderLegend());
+    this.bind('heurist-graph-expansions-changed', () => this.renderLegend());
+    this.bind('heurist-graph-selection-changed', () => this.renderExpansionControls());
     this.bind("heurist-graph-configuration-changed", (event) => {
       void this.applyOptions(event.detail).catch((error) => this.reportError(error, "apply-options"));
     });
@@ -130,6 +139,28 @@ export class GraphControlPanel {
       }
     } else this.legendSection.remove();
     this.legend.render({ editEnabled });
+    this.renderExpansionControls();
+  }
+
+  expansionSeeds() {
+    const state = this.api.getState();
+    const ids = (state.selection || []).filter(id => state.recordIds.includes(id));
+    return ids.length ? ids : null;
+  }
+
+  renderExpansionControls() {
+    const state = this.api.getExpansionState(this.expansionSeeds());
+    this.levelSelector.replaceChildren();
+    for (let depth = 0; depth <= state.maxDepth; depth++) {
+      const option = document.createElement('option');
+      option.value = String(depth); option.textContent = `${$HR('Level')} ${depth}`;
+      this.levelSelector.append(option);
+    }
+    this.levelSelector.value = String(Math.min(state.depth, state.maxDepth));
+    this.levelSelector.title = $HR(this.expansionSeeds() ? 'Expansion depth for selected records' : 'Expansion depth for the base graph');
+    this.levelSelector.disabled = state.busy || !state.maxDepth;
+    this.pruneButton.disabled = state.busy || !state.depth;
+    this.expandButton.disabled = state.busy || state.depth >= state.maxDepth;
   }
 
   async editDataset() {
@@ -172,9 +203,8 @@ export class GraphControlPanel {
   }
 
   async expandGraph() {
-    const ids = this.api.getState().selection || [];
-    if (ids.length) return this.api.expandNode(ids[0]);
-    return this.api.fit?.();
+    try { return await this.api.advanceExpansion(this.expansionSeeds()); }
+    catch (error) { this.reportError(error, 'expansion'); }
   }
 
   toggleFullyCollapsed() {
@@ -220,6 +250,8 @@ export class GraphControlPanel {
       this.container.prepend(this.sourceHeader);
     if (this.expandButton)
       this.expandButton.hidden = this.options.showExpand === false;
+    if (this.pruneButton) this.pruneButton.hidden = this.options.showExpand === false;
+    if (this.levelSelector) this.levelSelector.hidden = this.options.showExpand === false;
     if (this.optionsButton)
       this.optionsButton.hidden = this.options.showOptions === false;
     if (this.publishButton)

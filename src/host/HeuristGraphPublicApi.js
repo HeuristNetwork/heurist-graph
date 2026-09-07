@@ -12,12 +12,14 @@
  */
 
 import { serializeGraphConfigurationSettings } from "../ui/config/graphConfigurationSchema.js";
+import { PublishedDialog } from "@heurist/client-core/ui";
 
 export class HeuristGraphPublicApi {
   constructor(application) {
     this.application = application;
     this.readyPromise = null;
     this.configurationDialogFactory = null;
+    this.publishedDialog = null;
   }
 
   setReadyPromise(promise) {
@@ -35,7 +37,7 @@ export class HeuristGraphPublicApi {
   async openPreferencesDialog(options = {}) {
     if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
     const saved = (await this.application.host.loadPreferences?.()) ?? null;
-    return this.configurationDialogFactory({ ...options, mode: "graph", value: saved || this.application.config.persistedSettings || {}, onSave: async (value, context) => {
+    return this.configurationDialogFactory({ ...options, mode: "preferences", value: saved || this.application.config.persistedSettings || {}, onSave: async (value, context) => {
       const result = await this.application.host.savePreferences?.(
         serializeGraphConfigurationSettings(value),
       );
@@ -44,12 +46,51 @@ export class HeuristGraphPublicApi {
     } });
   }
 
+  /** Serialize settings and publish a reproducible graph snapshot via the host PublicationController. */
+  publish(value, publishOptions = {}) {
+    const settings = serializeGraphConfigurationSettings(value);
+    const state =
+      publishOptions.preserveCurrentState === false ? {} : this.getState();
+    return this.application.host.publish({
+      format: "heurist-publication",
+      version: 1,
+      options: settings.options,
+      config: settings.config,
+      state,
+    });
+  }
+
   openPublishDialog(options = {}) {
-    if (!this.configurationDialogFactory) throw new Error("Graph configuration dialog is not available");
-    return this.configurationDialogFactory({ ...options, mode: "publish", value: this.application.config.persistedSettings || {}, onSave: async (value, context) => {
-      const result = await this.application.host.publish?.({ format: "heurist-publication", version: 1, options: context.serialized.options, config: context.serialized.config, state: this.getState() });
-      return options.onSave?.(value, context, result) ?? result;
-    } });
+    if (!this.configurationDialogFactory)
+      throw new Error("Graph configuration dialog is not available");
+    const value = publicationSettings(
+      options.value || this.application.config.persistedSettings || {},
+      this.application.config.language,
+    );
+    return this.configurationDialogFactory({
+      ...options,
+      mode: "publish",
+      value,
+      onSave: async (value, context) => {
+        const result = normalizePublicationResult(
+          await this.publish(value, context.publishOptions),
+        );
+        this.application.dispatch("heurist-graph-published", {
+          publication: result,
+          settings: context.serialized,
+        });
+        await options.onSave?.(value, context, result);
+        // GraphConfigurationDialog closes after this callback resolves. Defer the
+        // published-link dialog so it opens once the configuration overlay is gone.
+        setTimeout(() => {
+          this.publishedDialog?.close?.();
+          this.publishedDialog = new PublishedDialog({
+            publication: result,
+          }).open();
+        }, 0);
+        return result;
+      },
+    });
   }
 
   load(options) {
@@ -83,6 +124,14 @@ export class HeuristGraphPublicApi {
   getLegend() {
     return this.application.getLegend();
   }
+
+  defineExpansions() { return this.application.defineExpansions(); }
+  resetExpansionRules() { return this.application.resetExpansionRules(); }
+  setRuleEnabled(id, enabled) { return this.application.setRuleEnabled(id, enabled); }
+  getExpansionState(ids) { return this.application.getExpansionState(ids); }
+  setExpansionDepth(depth, ids) { return this.application.setExpansionDepth(depth, ids); }
+  advanceExpansion(ids) { return this.application.advanceExpansion(ids); }
+  pruneExpansion(ids) { return this.application.pruneExpansion(ids); }
 
   setRelationshipVisibility(key, ids, visible) {
     return this.application.setRelationshipVisibility(key, ids, visible);
@@ -125,6 +174,38 @@ export class HeuristGraphPublicApi {
   }
 
   destroy() {
+    this.publishedDialog?.close?.();
+    this.publishedDialog = null;
     return this.application.destroy();
+  }
+}
+
+/** Force a concrete UI language into publication settings ("auto" cannot resolve without a runtime). */
+function publicationSettings(settings, runtimeLanguage) {
+  const value = JSON.parse(JSON.stringify(settings || {}));
+  value.options ||= {};
+  value.options.ui ||= {};
+  if (!value.options.ui.language || value.options.ui.language === "auto") {
+    value.options.ui.language = runtimeLanguage || "eng";
+  }
+  return value;
+}
+
+/** Canonicalize the publication link the host returns to a single `pub_id` query parameter. */
+function normalizePublicationResult(result) {
+  if (!result?.url) return result;
+  try {
+    const url = new URL(
+      result.url,
+      globalThis.location?.href || "http://localhost/",
+    );
+    const publicationId =
+      url.searchParams.get("pub_id") || url.searchParams.get("publication_id");
+    if (publicationId) url.searchParams.set("pub_id", publicationId);
+    url.searchParams.delete("publication_id");
+    url.searchParams.delete("type");
+    return { ...result, url: url.href };
+  } catch {
+    return result;
   }
 }
