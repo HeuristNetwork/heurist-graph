@@ -1,3 +1,4 @@
+import { showGraphMessage } from "./graphMessages.js";
 /**
  * @file GraphControlPanel.js
  * @brief Graph controls using the heurist-data panel interaction pattern.
@@ -21,7 +22,7 @@ export class GraphControlPanel {
 
   async mount() {
     this.element = document.createElement("aside");
-    this.element.className = "heurist-module-control-panel";
+    this.element.className = "heurist-module-control-panel h-widget";
     this.element.setAttribute("aria-label", $HR("Graph controls"));
     const header = document.createElement("div");
     header.className = "heurist-module-panel-header";
@@ -36,7 +37,7 @@ export class GraphControlPanel {
     this.pruneButton = iconButton('fa-solid fa-angle-left', 'Prune one level', () => this.api.pruneExpansion(this.expansionSeeds()).catch(error => this.reportError(error, 'expansion')));
     this.levelSelector = document.createElement('select');
     this.levelSelector.setAttribute('aria-label', $HR('Current expansion level'));
-    this.levelSelector.style.border = 'none';
+    this.levelSelector.className = 'h-select';
     this.levelSelector.addEventListener('change', () => {
       void this.api.setExpansionDepth(this.levelSelector.value, this.expansionSeeds()).catch(error => this.reportError(error, 'expansion'));
     });
@@ -330,7 +331,7 @@ function iconButton(icon, title, handler) {
   button.innerHTML = `<span class="${icon}" aria-hidden="true"></span>`;
   button.addEventListener("click", (event) => {
     event.stopPropagation();
-    Promise.resolve(handler()).catch(() => {});
+    Promise.resolve().then(handler).catch(error => showGraphMessage(error, { error: true }));
   });
   return button;
 }

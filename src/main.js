@@ -11,7 +11,9 @@
  * @since       8.0
  */
 
+import "@heurist/client-core/ui/heurist-ui.css";
 import "./style.css";
+import { showGraphMessage } from "./ui/graphMessages.js";
 import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import { getHeuristGraphConfig } from "./graphConfig.js";
@@ -30,6 +32,7 @@ function moduleBaseUrl() {
 }
 
 bootstrap.catch((error) => {
+  showGraphMessage(error, { error: true, title: "Unable to initialize the graph" });
   const container = document.getElementById("heurist-graph");
   if (container) container.textContent = error?.message || String(error);
   console.error("Unable to initialize heurist-graph", error);

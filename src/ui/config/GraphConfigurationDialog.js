@@ -15,7 +15,8 @@ import {
   normalizeGraphConfigurationSettings,
   serializeGraphConfigurationSettings,
 } from "./graphConfigurationSchema.js";
-import { $HR, applyI18n } from "@heurist/client-core/ui";
+import { $HR, applyI18n, HMsg } from "@heurist/client-core/ui";
+import { showGraphMessage } from "../graphMessages.js";
 
 /** Edits and serializes heurist-graph settings in a modal dialog. */
 export class GraphConfigurationDialog {
@@ -71,43 +72,40 @@ export class GraphConfigurationDialog {
       throw new Error("GraphConfigurationDialog requires a browser document");
     if (this.element) return this;
     this.previousFocus = document.activeElement;
-    this.element = el("div", "heurist-data-config-backdrop");
-    this.dialog = el("section", "heurist-data-config-dialog");
-    this.dialog.setAttribute("role", "dialog");
-    this.dialog.setAttribute("aria-modal", "true");
-    const header = el("header", "heurist-data-config-header");
-    const heading = el("h2", "h-i18n");
+    this.dialog = el("dialog", "heurist-data-config-dialog h-dialog");
+    this.element = this.dialog;
+    this.dialog.setAttribute("aria-label", $HR(this.title));
+    this.dialog.addEventListener("cancel", event => {
+      event.preventDefault();
+      this.cancel();
+    });
+    const header = el("header", "h-dialog-header");
+    const heading = el("h2", "h-dialog-title h-i18n");
     heading.textContent = this.title;
     const close = button("×", () => this.cancel(), "Close");
-    close.classList.add("heurist-data-config-close");
+    close.classList.add("h-dialog-close");
     header.append(heading, close);
     this.form = el("form", "heurist-data-config-form");
     this.form.addEventListener("submit", (event) => {
       event.preventDefault();
       void this.save();
     });
-    this.form.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        this.cancel();
-      }
-    });
-    this.content = el("div", "heurist-data-config-content");
+    this.content = el("div", "heurist-data-config-content h-dialog-body");
     this.buildSections();
-    const footer = el("footer", "heurist-data-config-footer");
+    const footer = el("footer", "heurist-data-config-footer h-dialog-footer");
     footer.append(
       button("Cancel", () => this.cancel()),
       submitButton(this.mode === "publish" ? "Publish" : "Apply"),
     );
     this.form.append(this.content, footer);
     this.dialog.append(header, this.form);
-    this.element.append(this.dialog);
     (this.parent || document.body).append(this.element);
     this.populate();
     this.applyDependencies();
     this.initialState = this.signature();
     applyI18n(this.dialog);
-    void this.loadProviderOptions().then(() => applyI18n(this.dialog));
+    void this.loadProviderOptions().then(() => { if (this.dialog) applyI18n(this.dialog); });
+    this.dialog.showModal();
     this.dialog.querySelector("input,select,textarea,button")?.focus();
     return this;
   }
@@ -248,7 +246,7 @@ export class GraphConfigurationDialog {
       this.register("config.currentResults.filterBy.widgetId", target, row);
       mode.addEventListener("change", () => {
         this.applyDependencies();
-        void this.loadWidgetOptions();
+        void this.loadWidgetOptions().catch(error => this.showError(error));
       });
     }
   }
@@ -448,7 +446,7 @@ export class GraphConfigurationDialog {
   }
 
   async loadProviderOptions() {
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       this.loadRecordOptions(
         this.datasetListProvider,
         "options.datasets.allowed",
@@ -461,6 +459,8 @@ export class GraphConfigurationDialog {
       this.loadTemplateOptions(),
       this.loadWidgetOptions(),
     ]);
+    const failures = results.filter(result => result.status === "rejected");
+    if (failures.length) this.showError(failures.map(result => result.reason?.message || String(result.reason)).join("\n"));
   }
 
   async loadRecordOptions(provider, transferPath, defaultPath = null) {
@@ -567,7 +567,7 @@ export class GraphConfigurationDialog {
     };
   }
   signature() {
-    return JSON.stringify(this.readForm());
+    return JSON.stringify([this.readForm(), this.getPublishOptions()]);
   }
   async save() {
     try {
@@ -587,27 +587,36 @@ export class GraphConfigurationDialog {
     }
   }
   cancel() {
-    if (
-      this.initialState &&
-      this.signature() !== this.initialState &&
-      typeof globalThis.confirm === "function" &&
-      !globalThis.confirm($HR("Discard changes to data configuration?"))
-    )
+    if (this.initialState && this.signature() !== this.initialState) {
+      if (this.discardDialog?.open) return false;
+      this.discardDialog = HMsg.showMsgDlg('Discard changes to graph configuration?', {
+        title: 'Discard changes', dialogId: 'heurist-graph-discard-changes',
+        buttons: [
+          { label: 'Keep editing', class: 'h-btn', onClick: () => this.discardDialog.close() },
+          { label: 'Discard changes', class: 'h-btn h-btn-danger', onClick: () => {
+            this.discardDialog.close();
+            this.finishCancel();
+          } }
+        ]
+      });
       return false;
-    const value = this.getValue();
+    }
+    return this.finishCancel();
+  }
+  finishCancel() {
+    let value;
+    try { value = this.getValue(); } catch { value = clone(this.value); }
     this.close();
     this.onCancel?.(value, { mode: this.mode });
     return true;
   }
   showError(message) {
-    let node = this.form.querySelector(".heurist-data-config-error");
-    if (!node) {
-      node = el("div", "heurist-data-config-error");
-      this.form.prepend(node);
-    }
-    node.textContent = message;
+    if (this.form) showGraphMessage(message, { error: true, title: 'Graph configuration error' });
   }
   close() {
+    this.discardDialog?.close();
+    this.dialog?.close();
+    this.initialState = null;
     this.element?.remove();
     this.element = this.dialog = this.form = null;
     this.fields.clear();
@@ -642,6 +651,9 @@ function defaultTitle(mode) {
 function el(tag, className = "") {
   const node = document.createElement(tag);
   if (className) node.className = className;
+  if (["input", "textarea"].includes(tag)) node.classList.add("h-input");
+  if (tag === "select") node.classList.add("h-select");
+  if (tag === "button") node.classList.add("h-btn");
   return node;
 }
 function button(label, handler, title = label) {
@@ -654,7 +666,7 @@ function button(label, handler, title = label) {
   return node;
 }
 function submitButton(label) {
-  const node = el("button", "h-i18n primary");
+  const node = el("button", "h-i18n h-btn-primary");
   node.type = "submit";
   node.textContent = label;
   return node;
@@ -665,6 +677,8 @@ function plainCheck(labelText, checked = false) {
   const caption = el("span", "h-i18n");
   caption.textContent = labelText;
   control.type = "checkbox";
+  control.classList.remove("h-input");
+  control.classList.add("h-checkbox");
   control.checked = checked;
   row.append(control, caption);
   return { row, control };

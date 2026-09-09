@@ -1,3 +1,4 @@
+import { showGraphMessage } from "./ui/graphMessages.js";
 /**
  * @file initHeuristGraph.js
  * @brief Initializes the heurist-graph application.
@@ -56,6 +57,15 @@ export async function initHeuristGraph(config) {
     vocabularyProvider: new VocabularyProvider({ apiClient }),
   });
   const api = new HeuristGraphPublicApi(application);
+  api.addEventListener('heurist-graph-error', event => showGraphMessage(event.detail?.error || event.detail?.message, { error: true }));
+  api.addEventListener('heurist-graph-warning', event => showGraphMessage(event.detail?.message));
+  api.addEventListener('heurist-graph-message', event => showGraphMessage(event.detail?.message, { title: 'Graph' }));
+  api.addEventListener('heurist-graph-loaded', () => {
+    const limits = application.graph?.limits;
+    if (limits?.edgesTruncated || limits?.truncated) {
+      showGraphMessage('Graph is truncated; only links between loaded records are shown.');
+    }
+  });
   const canvas = document.createElement("div");
   canvas.className = "heurist-graph-canvas";
   const message = document.createElement("div");

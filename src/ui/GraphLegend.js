@@ -118,7 +118,7 @@ export class GraphLegend {
   checkbox(label, count, checked, mixed, key, handler) {
     const row = element('label', null, 'heurist-graph-legend-row');
     const input = element('input');
-    input.type = 'checkbox'; input.checked = checked; input.indeterminate = mixed;
+    input.type = 'checkbox'; input.classList.add("h-checkbox"); input.checked = checked; input.indeterminate = mixed;
     input.dataset.legendKey = key;
     input.addEventListener('click', event => event.stopPropagation());
     input.addEventListener('change', () => this.run(() => handler(input.checked)));

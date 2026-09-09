@@ -37,7 +37,7 @@ export class FilterSelector {
     for (const filter of filters) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `${this.classPrefix}-filter-row`;
+      button.className = `${this.classPrefix}-filter-row h-menu-item`;
       button.textContent = filter.title;
       button.title = `${$HR("Apply")} ${filter.title}`;
       button.addEventListener("click", () => {
