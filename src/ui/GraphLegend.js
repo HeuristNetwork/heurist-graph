@@ -98,7 +98,7 @@ export class GraphLegend {
   branch(key, row, children) {
     const branch = element('div', null, 'heurist-graph-legend-branch');
     const header = element('div', null, 'heurist-graph-legend-branch-header');
-    const toggle = element('button', this.open.has(key) ? '▾' : '▸', 'heurist-module-icon-button');
+    const toggle = element('button', this.open.has(key) ? '▾' : '▸', 'heurist-icon-button');
     toggle.type = 'button';
     toggle.setAttribute('aria-label', `${$HR('Expand or collapse')} ${row.textContent}`);
     toggle.setAttribute('aria-expanded', String(this.open.has(key)));
@@ -127,7 +127,7 @@ export class GraphLegend {
   }
 
   action(title, icon, handler) {
-    const button = element('button', null, 'heurist-module-icon-button');
+    const button = element('button', null, 'heurist-icon-button');
     button.type = 'button'; button.title = $HR(title); button.setAttribute('aria-label', $HR(title));
     const glyph = element('span', null, `fa-solid ${icon}`);
     glyph.setAttribute('aria-hidden', 'true'); button.append(glyph);

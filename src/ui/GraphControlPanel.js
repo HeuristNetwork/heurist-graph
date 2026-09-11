@@ -325,7 +325,7 @@ function section(parent, title, collapsible = false) {
 function iconButton(icon, title, handler) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "heurist-module-icon-button";
+  button.className = "heurist-icon-button";
   button.title = $HR(title);
   button.setAttribute("aria-label", $HR(title));
   button.innerHTML = `<span class="${icon}" aria-hidden="true"></span>`;
