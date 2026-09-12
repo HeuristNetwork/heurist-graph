@@ -37,8 +37,10 @@ export function getHeuristGraphConfig() {
   // merge them, letting a publication's `state` win.
   const source = { ...bootstrap.source, ...(bootstrap.state || {}) };
   const language = String(runtime.language || "eng").slice(0, 3).toLowerCase();
+  const runtimeMode = String(runtime.runtimeMode || "standalone").toLowerCase();
   return {
     containerId: "heurist-graph",
+    runtimeMode,
     database: runtime.database || null,
     apiBaseUrl: runtime.apiBaseUrl || null,
     accessToken: runtime.accessToken || null,
@@ -91,9 +93,7 @@ export function getHeuristGraphConfig() {
     ui: persistedSettings.options.ui,
     loadPreferencesOnInit:
       !hasPersistedSettings &&
-      !["website", "publish", "published"].includes(
-        String(runtime.runtimeMode || "").toLowerCase(),
-      ),
+      !["website", "publish", "published"].includes(runtimeMode),
   };
 }
 

@@ -13,10 +13,10 @@
 export const HEURIST_GRAPH_OPTIONS_DEFAULTS = Object.freeze({
   ui: Object.freeze({
     showCurrentResults: true,
-    showDatasets: true,
-    showFilters: true,
+    showDatasets: false,
+    showFilters: false,
     initiallyExpanded: true,
-    showSourceHeader: false,
+    showSourceHeader: true,
     showOptions: true,
     showPublish: true,
     showExpand: true,

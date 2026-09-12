@@ -131,3 +131,6 @@ label.heurist-data-dataset { display:flex; align-items:center; gap:6px; font-wei
 
 .heurist-graph-nav-bottom { display:flex; gap:3px; }
 .heurist-graph-nav-bottom[hidden], .heurist-graph-nav-button[hidden] { display:none !important; }
+
+/* Explorer ("main") host has limited header width, so keep the expansion-level select narrow. */
+.heurist-graph-runtime-main .heurist-graph-level-selector { max-width:70px; }

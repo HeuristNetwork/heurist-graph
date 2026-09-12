@@ -94,6 +94,7 @@ export async function initHeuristGraph(config) {
       container,
       options: {
         ...config.ui,
+        runtimeMode: config.runtimeMode,
         currentResultsTitle: config.persistedSettings?.config?.currentResults?.title,
       },
       datasetListProvider,

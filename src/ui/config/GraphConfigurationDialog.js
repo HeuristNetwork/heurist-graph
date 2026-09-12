@@ -130,25 +130,33 @@ export class GraphConfigurationDialog {
         (body) => this.buildDefaults(body),
         true,
       ),
-      this.section(
-        "Filtered Result",
-        (body) => this.buildCurrentResults(body),
-        true,
-      ),
-      this.section("Datasets and Filters", (body) =>
-        this.buildDatasetsAndFilters(body),
-      ),
+    );
+    if (this.mode === "website") {
+      this.content.append(
+        this.section(
+          "Filtered Result",
+          (body) => this.buildCurrentResults(body),
+          true,
+        ),
+        this.section("Datasets and Filters", (body) =>
+          this.buildDatasetsAndFilters(body),
+        ),
+      );
+    }
+    this.content.append(
       this.section("Interaction", (body) => this.buildInteraction(body)),
     );
   }
 
   buildInterface(body) {
-    body.append(
-      this.check("options.ui.showCurrentResults", "Filtered Result"),
-      this.check("options.ui.showDatasets", "Datasets"),
-      this.check("options.ui.showFilters", "Filters"),
-    );
-    body.append(this.separator());
+    if (this.mode === "website") {
+      body.append(
+        this.check("options.ui.showCurrentResults", "Filtered Result"),
+        this.check("options.ui.showDatasets", "Datasets"),
+        this.check("options.ui.showFilters", "Filters"),
+      );
+      body.append(this.separator());
+    }
     const sourceHeader = this.check("options.ui.showSourceHeader", "Header");
     sourceHeader.title = $HR("source_header_hint");
     body.append(

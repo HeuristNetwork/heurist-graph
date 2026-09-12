@@ -37,7 +37,7 @@ export class GraphControlPanel {
     this.pruneButton = iconButton('fa-solid fa-angle-left', 'Prune one level', () => this.api.pruneExpansion(this.expansionSeeds()).catch(error => this.reportError(error, 'expansion')));
     this.levelSelector = document.createElement('select');
     this.levelSelector.setAttribute('aria-label', $HR('Current expansion level'));
-    this.levelSelector.className = 'h-select';
+    this.levelSelector.className = 'h-select heurist-graph-level-selector';
     this.levelSelector.addEventListener('change', () => {
       void this.api.setExpansionDepth(this.levelSelector.value, this.expansionSeeds()).catch(error => this.reportError(error, 'expansion'));
     });
@@ -106,10 +106,13 @@ export class GraphControlPanel {
     this.sourceHeader.textContent =
       state.datasetTitle ||
       (currentTitle === "Filtered Result" ? $HR(currentTitle) : currentTitle);
-    const [datasets, filters] = await Promise.all([
-      this.datasetListProvider?.list?.() || [],
-      this.filterListProvider?.list?.() || [],
-    ]);
+    const isMainRuntime = this.options.runtimeMode === "main";
+    const [datasets, filters] = isMainRuntime
+      ? [[], []]
+      : await Promise.all([
+          this.datasetListProvider?.list?.() || [],
+          this.filterListProvider?.list?.() || [],
+        ]);
     this.datasetsSelector.render(
       normalizeItems(datasets, "Dataset"),
       state.datasetId,
@@ -247,6 +250,10 @@ export class GraphControlPanel {
 
   applyVisibility() {
     if (!this.element) return;
+    this.element.classList.toggle(
+      "heurist-graph-runtime-main",
+      this.options.runtimeMode === "main",
+    );
     if (this.sourceHeader && !this.sourceHeader.isConnected)
       this.container.prepend(this.sourceHeader);
     if (this.expandButton)
@@ -272,7 +279,9 @@ export class GraphControlPanel {
         this.options.showDatasets === false &&
         this.options.showCurrentResults === false;
     if (this.filtersSection)
-      this.filtersSection.hidden = this.options.showFilters === false;
+      this.filtersSection.hidden =
+        this.options.showFilters === false ||
+        this.options.runtimeMode === "main";
     const hasVisiblePanel = [this.datasetsSection, this.filtersSection].some(
       (section) => section && !section.hidden,
     );

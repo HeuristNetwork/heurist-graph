@@ -29,7 +29,7 @@ test("graph configuration defaults expose the requested controls", () => {
   assert.equal(value.options.datasets.allowAll, true);
   assert.equal(value.options.filters.allowAll, true);
   assert.equal(value.options.ui.language, "auto");
-  assert.equal(value.options.ui.showSourceHeader, false);
+  assert.equal(value.options.ui.showSourceHeader, true);
   assert.equal(value.options.ui.showExpand, true);
   assert.equal(value.options.nativeControls.zoom, true);
   assert.equal(value.options.nativeControls.pan, true);
